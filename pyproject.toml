@@ -1,0 +1,25 @@
+[project]
+name = "parcial2"
+version = "0.1.0"
+description = "Grupo 8 - Análisis de Datos del Canal de Panamá (Segundo Parcial: Pipeline + Visualización)"
+requires-python = ">=3.13"
+dependencies = [
+    # Persona 1 - Ingesta (Fuente 1: Canal de Panamá)
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "requests>=2.31",
+    # Persona 3 - Preprocesamiento y Análisis de Tendencias
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "scipy>=1.11",
+]
+
+[dependency-groups]
+# Dependencias opcionales por persona (instalar con `uv sync --group <nombre>`)
+dev = [
+    "jupyter>=1.0",
+    "ipykernel>=6.29",
+]
+
+[tool.uv]
+package = false
