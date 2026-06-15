@@ -1,0 +1,32 @@
+[
+  {
+    "id": "rango",
+    "titulo": "Cobertura del dataset",
+    "detalle": "Datos desde 2019-10-01 hasta 2025-12-01 (75 meses, 10 segmentos). Total de tránsitos: 72,543; peajes acumulados: USD 20,294,617,711."
+  },
+  {
+    "id": "segmento_lider",
+    "titulo": "Segmento líder",
+    "detalle": "'Portacontenedores' domina con 24.4% de los tránsitos del período y un promedio mensual de 237 tránsitos."
+  },
+  {
+    "id": "impacto_sequia",
+    "titulo": "Impacto de la sequía 2023–may-2024",
+    "detalle": "Durante la sequía, 'Pasajeros' cayó 28.5% frente al baseline. Promedio mensual pasó de 14 a 10 tránsitos."
+  },
+  {
+    "id": "recuperacion_2025",
+    "titulo": "Recuperación 2025+",
+    "detalle": "En 2025, 'Quimiqueros' supera el baseline en 22.2%. Promedio mensual: 224 tránsitos (baseline: 183)."
+  },
+  {
+    "id": "estacionalidad",
+    "titulo": "Estacionalidad",
+    "detalle": "Mes calendario pico: 4 (+8.66% sobre la media). Mes valle: 8 (-9.26% sobre la media). Amplitud estacional: 17.92 puntos porcentuales."
+  },
+  {
+    "id": "tendencia",
+    "titulo": "Tendencia de largo plazo",
+    "detalle": "CAGR 2019–2025: 30.64% anual. Correlación Pearson(tránsitos, año) = 0.637 (p=0.1241); tendencia no significativa."
+  }
+]
