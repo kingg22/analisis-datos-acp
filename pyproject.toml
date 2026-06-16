@@ -12,6 +12,8 @@ dependencies = [
     "matplotlib>=3.8",
     "seaborn>=0.13",
     "scipy>=1.11",
+    # Persona 4 - Modelo Predictivo (ML)
+    "scikit-learn>=1.4",
 ]
 
 [dependency-groups]
