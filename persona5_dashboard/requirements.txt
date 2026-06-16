@@ -1,0 +1,5 @@
+# Persona 5 — Dashboard + LLM
+streamlit>=1.32
+plotly>=5.18
+openai>=1.12
+anthropic>=0.18
