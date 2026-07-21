@@ -136,7 +136,8 @@ Figuras listas en `persona3_analisis/figures/` (7 PNG):
 
 1. **Granularidad anual:** la ACP no publica el desglose por segmento a nivel
    mensual; por eso no hay análisis de estacionalidad intra-anual.
-2. **`calado_promedio_pies`** es un valor nominal de referencia por segmento, no
-   publicado por la ACP (ver `persona1_ingesta/docs/FUENTE_DATOS.md`).
+2. **`calado_promedio_pies`** queda vacío porque la ACP no publica este indicador
+   por segmento; no se estima ni se sustituye por un valor ilustrativo (ver
+   `persona1_ingesta/docs/FUENTE_DATOS.md`).
 3. **Serie corta:** 6 años fiscales; las métricas de tendencia tienen alta
    incertidumbre. Al publicarse nuevos informes anuales, re-ejecutar el pipeline.

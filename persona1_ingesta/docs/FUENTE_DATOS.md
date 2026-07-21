@@ -17,8 +17,8 @@ la ACP**, descargables públicamente:
 
 | Documento | URL | Aporta |
 |---|---|---|
-| Informe Anual 2025 (ACP) | https://pancanal.com/wp-content/uploads/2026/02/Informe-2025Eng.pdf | Tránsitos por segmento FY2023–FY2025 (Gráfica 6), tonelaje PC/UMS, peajes (estados financieros) |
-| Informe Anual 2022 (ACP) | https://pancanal.com/wp-content/uploads/2023/02/Informe-2022-Eng.pdf | Tránsitos por segmento FY2020–FY2022 (Gráfica 6), tonelaje PC/UMS, peajes |
+| Informe Anual 2025 (ACP) | https://pancanal.com/wp-content/uploads/2026/02/Informe-2025Eng.pdf | Tránsitos FY2023–FY2025 (Gráfica 6, p. 46); tonelaje y peajes (Gráficas 3 y 4, p. 45) |
+| Informe Anual 2022 (ACP) | https://pancanal.com/wp-content/uploads/2023/02/Informe-2022-Eng.pdf | Tránsitos FY2020–FY2022 (Gráfica 6, p. 35); tonelaje y peajes (Gráficas 3 y 4, p. 34) |
 | Índice de Informes Anuales | https://pancanal.com/en/maritime-services/annual-report/ | Listado histórico de informes |
 
 Otros portales públicos de referencia:
@@ -28,6 +28,11 @@ Otros portales públicos de referencia:
 | Estadísticas ACP | https://pancanal.com/en/statistics/ |
 | Portal Logístico de Panamá | https://logistics.gatech.pa |
 | Datos Abiertos de Panamá | https://www.datosabiertos.gob.pa |
+| INEC, Cuadro 34 (PDF/Excel/CSV) | https://www.inec.gob.pa/publicaciones/Default3.aspx?ID_CATEGORIA=4&ID_PUBLICACION=1365&ID_SUBCATEGORIA=22 |
+
+El Cuadro 34 del INEC es un CSV público real basado en registros de la ACP, pero
+usa años calendario, clasificación por calado y cobertura 2020–2024. No se mezcla
+con esta serie porque los informes ACP usan años fiscales y segmentos de mercado.
 
 ---
 
@@ -42,10 +47,11 @@ entrada real del pipeline (cada fila incluye la columna `fuente`):
   tonelaje PC/UMS (millones), peajes (millones de balboas) e ingresos totales.
 
 Estos CSV **no se editan a mano**: se generan con el script reproducible
-`src/construir_datos_acp.py`, que declara cada cifra con su cita (informe, gráfica,
-página) y **verifica** que la suma de los segmentos coincida exactamente con el
-total oficial de cada año fiscal antes de escribir los archivos. Para regenerarlos
-o auditar su procedencia:
+`src/construir_datos_acp.py`, que declara cada cifra con su cita específica
+(informe, gráfica, página y año fiscal) y **verifica** que la suma de los
+segmentos coincida exactamente con el total oficial antes de escribirlos. La
+comprobación de suma detecta inconsistencias; la cita de cada fila permite auditar
+la transcripción contra la gráfica original. Para regenerarlos:
 
 ```bash
 python src/construir_datos_acp.py
@@ -99,11 +105,10 @@ segmento) — no se inventa ninguna distribución mensual. Notas:
 
 - Los tránsitos por segmento son cifras oficiales reales de la ACP.
 - El tonelaje y los peajes anuales oficiales se prorratean de forma proporcional
-  a los tránsitos de cada segmento (la suma por año fiscal reproduce la cifra
-  oficial).
-- **`calado_promedio_pies`** es un valor **nominal de referencia** por segmento,
-  **no** publicado por la ACP; se incluye solo para conservar el esquema del
-  pipeline.
+  a los tránsitos de cada segmento mediante el método de mayores residuos; la
+  suma por año fiscal reproduce exactamente la cifra oficial entera.
+- **`calado_promedio_pies`** queda vacío: la ACP no publica este indicador por
+  segmento y el proyecto no lo estima ni lo inventa.
 
 ---
 
@@ -133,12 +138,13 @@ el Informe Anual correspondiente.
 
 ---
 
-## 7. Cómo conectar un CSV oficial (modo `local`)
+## 7. Cómo conectar un CSV local (modo `local`)
 
-Si en el futuro la ACP publica un CSV mensual descargable:
+El modo funciona con el archivo oficial versionado o con otro CSV colocado en
+`data/raw/`:
 
-1. Descargar el CSV y colocarlo en `data/raw/`.
-2. Ejecutar `python src/ingesta_canal.py --modo local`.
+1. Colocar el CSV en `data/raw/`.
+2. Ejecutar `python src/ingesta_canal.py --modo local --archivo archivo.csv`.
 3. Si el esquema difiere, ajustar el mapeo de columnas en `limpiar()`. La salida
    `canal_limpio.csv` debe conservar el esquema documentado en el README para no
    romper el pipeline.

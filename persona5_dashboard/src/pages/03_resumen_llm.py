@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import streamlit as st
+import pandas as pd
 
 src_dir = str(Path(__file__).resolve().parent.parent)
 if src_dir not in sys.path:
@@ -41,12 +42,22 @@ if api_provider != "Sin API (solo datos)":
         st.sidebar.success("✅ API Key configurada")
 
 
+def formato_calado(valor) -> str:
+    """Presenta el calado sin inventar un valor cuando la ACP no lo publica."""
+    return f"{valor:.1f} pies" if pd.notna(valor) else "No disponible en la fuente"
+
+
 def build_context() -> str:
     parts = []
 
     stats_df = load_stats_totales()
     stats_row = stats_df[stats_df["Unnamed: 0"] == "mean"].iloc[0]
-    parts.append(f"## Estadísticas Generales (por segmento y año fiscal)\n- Tránsitos promedio: {stats_row['transitos']:.0f}\n- Peajes promedio: ${stats_row['peajes_usd']:,.0f}\n- Calado promedio: {stats_row['calado_promedio_pies']:.1f} pies")
+    parts.append(
+        "## Estadísticas Generales (por segmento y año fiscal)\n"
+        f"- Tránsitos promedio: {stats_row['transitos']:.0f}\n"
+        f"- Peajes promedio: ${stats_row['peajes_usd']:,.0f}\n"
+        f"- Calado promedio: {formato_calado(stats_row['calado_promedio_pies'])}"
+    )
 
     insights = load_insights()
     parts.append("## Insights del Análisis\n" + "\n".join(f"- **{i['titulo']}**: {i['detalle']}" for i in insights))
@@ -125,7 +136,7 @@ def generate_local_summary(context: str, prompt: str) -> str:
 
 - **Tránsitos promedio:** {int(stats_row['transitos']):,}
 - **Peajes promedio:** ${stats_row['peajes_usd']:,.0f}
-- **Calado promedio:** {stats_row['calado_promedio_pies']:.1f} pies
+- **Calado promedio:** {formato_calado(stats_row['calado_promedio_pies'])}
 
 ---
 

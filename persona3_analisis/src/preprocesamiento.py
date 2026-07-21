@@ -118,10 +118,11 @@ def normalizar_canal(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     num_cols = df.select_dtypes(include=[np.number]).columns
-    nulos = int(df[num_cols].isna().sum().sum())
+    columnas_rellenables = num_cols.difference(["calado_promedio_pies"])
+    nulos = int(df[columnas_rellenables].isna().sum().sum())
     if nulos:
         log.info("Rellenando %d nulos numéricos con 0", nulos)
-        df[num_cols] = df[num_cols].fillna(0)
+        df[columnas_rellenables] = df[columnas_rellenables].fillna(0)
 
     # Flags de eventos macro (por año fiscal).
     df["periodo_sequia"] = (df["anio_fiscal"] == 2024).astype(int)

@@ -23,8 +23,7 @@ FUENTE PÚBLICA REAL (modo por defecto "oficial"):
     - Informe Anual 2022 -> años fiscales 2020, 2021 y 2022.
 
 MODO ADICIONAL:
-    - "local" : lee un CSV ya descargado manualmente en data/raw/ (por si en el
-                futuro la ACP publica un CSV descargable).
+    - "local" : lee un CSV de data/raw/; acepta --archivo para seleccionarlo.
 """
 
 import os
@@ -45,22 +44,6 @@ RUTA_PROCESSED = os.path.join(RUTA_BASE, "data", "processed")
 ARCHIVO_SEGMENTOS = "acp_transitos_por_segmento_af.csv"
 ARCHIVO_INDICADORES = "acp_indicadores_anuales_af.csv"
 
-# Calado nominal de referencia por segmento (en pies). NO proviene de la ACP:
-# es un valor típico ilustrativo para conservar la columna que usa el pipeline.
-# El informe anual de la ACP no publica calado promedio por segmento.
-CALADO_NOMINAL_PIES = {
-    "Graneles_secos": 39.0,
-    "Tanqueros_quimiqueros": 38.0,
-    "Portacontenedores": 43.0,
-    "Gas_licuado_GLP": 36.0,
-    "Vehiculos_RoRo": 34.0,
-    "Carga_refrigerada": 33.0,
-    "Carga_general": 32.0,
-    "Gas_natural_GNL": 41.0,
-    "Pasajeros": 28.0,
-    "Otros": 35.0,
-}
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -73,11 +56,89 @@ log = logging.getLogger("ingesta_canal")
 # ----------------------------------------------------------------------
 def leer_desde_local(nombre_archivo: str) -> pd.DataFrame:
     """Lee un CSV guardado en data/raw/."""
-    ruta = os.path.join(RUTA_RAW, nombre_archivo)
+    ruta = os.path.abspath(os.path.join(RUTA_RAW, nombre_archivo))
+    if os.path.commonpath([ruta, os.path.abspath(RUTA_RAW)]) != os.path.abspath(RUTA_RAW):
+        raise ValueError("El archivo local debe estar dentro de data/raw/")
     log.info("Leyendo archivo local: %s", ruta)
     df = pd.read_csv(ruta)
     log.info("Lectura completada: %d filas, %d columnas", df.shape[0], df.shape[1])
     return df
+
+
+def prorratear_entero(total: int, pesos: pd.Series) -> np.ndarray:
+    """Prorratea un total entero conservándolo exactamente (mayores residuos)."""
+    valores = pesos.to_numpy(dtype=float)
+    if total < 0:
+        raise ValueError("El total a prorratear no puede ser negativo")
+    if (valores < 0).any():
+        raise ValueError("Los pesos del prorrateo no pueden ser negativos")
+    if valores.sum() <= 0:
+        return np.zeros(len(valores), dtype=np.int64)
+
+    cuotas = valores / valores.sum() * int(total)
+    reparto = np.floor(cuotas).astype(np.int64)
+    faltantes = int(total - reparto.sum())
+    if faltantes:
+        residuos = cuotas - reparto
+        orden = np.argsort(-residuos, kind="stable")
+        reparto[orden[:faltantes]] += 1
+    return reparto
+
+
+def construir_tabla_oficial(seg: pd.DataFrame, ind: pd.DataFrame) -> pd.DataFrame:
+    """Combina las tablas oficiales y conserva exactamente sus totales anuales."""
+    columnas_segmentos = {"anio_fiscal", "segmento", "transitos"}
+    columnas_indicadores = {
+        "anio_fiscal", "transitos_totales", "toneladas_pcums_millones",
+        "peajes_millones_balboas",
+    }
+    if not columnas_segmentos.issubset(seg.columns):
+        faltantes = sorted(columnas_segmentos - set(seg.columns))
+        raise ValueError(f"Faltan columnas en el CSV de segmentos: {faltantes}")
+    if not columnas_indicadores.issubset(ind.columns):
+        faltantes = sorted(columnas_indicadores - set(ind.columns))
+        raise ValueError(f"Faltan columnas en el CSV de indicadores: {faltantes}")
+
+    ind = ind.set_index("anio_fiscal")
+    filas = []
+    for anio_fiscal, grupo in seg.groupby("anio_fiscal", sort=True):
+        if anio_fiscal not in ind.index:
+            raise ValueError(f"No hay indicadores oficiales para AF{anio_fiscal}")
+        total_segmentos = int(grupo["transitos"].sum())
+        total_publicado = int(ind.loc[anio_fiscal, "transitos_totales"])
+        if total_segmentos != total_publicado:
+            raise ValueError(
+                f"AF{anio_fiscal}: segmentos={total_segmentos}, "
+                f"total oficial={total_publicado}"
+            )
+
+        toneladas_millones = ind.loc[anio_fiscal, "toneladas_pcums_millones"]
+        toneladas_af = int(round(float(toneladas_millones) * 1_000_000))
+        peajes_millones = ind.loc[anio_fiscal, "peajes_millones_balboas"]
+        peajes_af = (
+            int(round(float(peajes_millones) * 1_000_000))
+            if pd.notna(peajes_millones)
+            else 0
+        )
+        toneladas_segmento = prorratear_entero(toneladas_af, grupo["transitos"])
+        peajes_segmento = prorratear_entero(peajes_af, grupo["transitos"])
+
+        for (_, r), toneladas, peajes in zip(
+            grupo.iterrows(), toneladas_segmento, peajes_segmento,
+        ):
+            filas.append(
+                {
+                    "anio_fiscal": int(anio_fiscal),
+                    "segmento": r["segmento"],
+                    "transitos": int(r["transitos"]),
+                    # La ACP no publica calado promedio por segmento.
+                    "calado_promedio_pies": np.nan,
+                    "toneladas_cp_suez": int(toneladas),
+                    "peajes_usd": int(peajes),
+                }
+            )
+
+    return pd.DataFrame(filas).sort_values(["anio_fiscal", "segmento"]).reset_index(drop=True)
 
 
 def cargar_datos_oficiales() -> pd.DataFrame:
@@ -102,33 +163,8 @@ def cargar_datos_oficiales() -> pd.DataFrame:
                 "Genéralo primero con: python src/construir_datos_acp.py"
             )
     seg = leer_desde_local(ARCHIVO_SEGMENTOS)
-    ind = leer_desde_local(ARCHIVO_INDICADORES).set_index("anio_fiscal")
-
-    filas = []
-    for anio_fiscal, grupo in seg.groupby("anio_fiscal"):
-        total_transitos_af = int(grupo["transitos"].sum())
-        toneladas_af = float(ind.loc[anio_fiscal, "toneladas_pcums_millones"]) * 1_000_000
-        peajes_millones = ind.loc[anio_fiscal, "peajes_millones_balboas"]
-        peajes_af = float(peajes_millones) * 1_000_000 if pd.notna(peajes_millones) else 0.0
-
-        ton_por_transito = toneladas_af / total_transitos_af if total_transitos_af else 0.0
-        peaje_por_transito = peajes_af / total_transitos_af if total_transitos_af else 0.0
-
-        for _, r in grupo.iterrows():
-            segmento = r["segmento"]
-            transitos = int(r["transitos"])
-            filas.append(
-                {
-                    "anio_fiscal": int(anio_fiscal),
-                    "segmento": segmento,
-                    "transitos": transitos,
-                    "calado_promedio_pies": CALADO_NOMINAL_PIES.get(segmento, 35.0),
-                    "toneladas_cp_suez": int(round(transitos * ton_por_transito)),
-                    "peajes_usd": int(round(transitos * peaje_por_transito)),
-                }
-            )
-
-    df = pd.DataFrame(filas).sort_values(["anio_fiscal", "segmento"]).reset_index(drop=True)
+    ind = leer_desde_local(ARCHIVO_INDICADORES)
+    df = construir_tabla_oficial(seg, ind)
     log.info(
         "Dataset oficial construido: %d filas (%d años fiscales, %d segmentos)",
         df.shape[0], seg["anio_fiscal"].nunique(), seg["segmento"].nunique(),
@@ -136,7 +172,7 @@ def cargar_datos_oficiales() -> pd.DataFrame:
     return df
 
 
-def ingestar(modo: str = "oficial", nombre_archivo: str = "transitos_canal.csv") -> pd.DataFrame:
+def ingestar(modo: str = "oficial", nombre_archivo: str = ARCHIVO_SEGMENTOS) -> pd.DataFrame:
     """
     Punto de entrada de la ingesta.
 
@@ -156,7 +192,11 @@ def ingestar(modo: str = "oficial", nombre_archivo: str = "transitos_canal.csv")
     if modo == "oficial":
         return cargar_datos_oficiales()
     if modo == "local":
-        return leer_desde_local(nombre_archivo)
+        df = leer_desde_local(nombre_archivo)
+        if os.path.basename(nombre_archivo) == ARCHIVO_SEGMENTOS:
+            indicadores = leer_desde_local(ARCHIVO_INDICADORES)
+            return construir_tabla_oficial(df, indicadores)
+        return df
     raise ValueError(f"Modo no válido: {modo}")
 
 
@@ -170,7 +210,7 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     Operaciones:
       - Normaliza nombres de columnas (minúsculas, sin espacios).
       - Elimina filas totalmente vacías y duplicados.
-      - Maneja valores nulos en columnas numéricas (relleno con 0).
+      - Maneja nulos numéricos con 0, salvo el calado no publicado por la ACP.
       - Valida que no existan tránsitos negativos.
       - Ordena por año fiscal y segmento.
     """
@@ -189,7 +229,9 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop_duplicates()
     log.info("Eliminadas %d filas vacías/duplicadas", antes - df.shape[0])
 
-    columnas_numericas = df.select_dtypes(include=[np.number]).columns
+    columnas_numericas = df.select_dtypes(include=[np.number]).columns.difference(
+        ["calado_promedio_pies"]
+    )
     nulos = df[columnas_numericas].isna().sum().sum()
     if nulos:
         log.info("Rellenando %d valores nulos numéricos con 0", nulos)
@@ -218,13 +260,15 @@ def construir_serie_anual(df: pd.DataFrame) -> pd.DataFrame:
         log.warning("No se puede construir serie anual: faltan columnas clave")
         return pd.DataFrame()
 
+    agregaciones = {"transitos_totales": ("transitos", "sum")}
+    if "toneladas_cp_suez" in df.columns:
+        agregaciones["toneladas_totales"] = ("toneladas_cp_suez", "sum")
+    if "peajes_usd" in df.columns:
+        agregaciones["peajes_totales_usd"] = ("peajes_usd", "sum")
+
     serie = (
         df.groupby("anio_fiscal", as_index=False)
-        .agg(
-            transitos_totales=("transitos", "sum"),
-            toneladas_totales=("toneladas_cp_suez", "sum"),
-            peajes_totales_usd=("peajes_usd", "sum"),
-        )
+        .agg(**agregaciones)
         .sort_values("anio_fiscal")
         .reset_index(drop=True)
     )
@@ -247,12 +291,12 @@ def guardar(df: pd.DataFrame, nombre: str) -> str:
 # ----------------------------------------------------------------------
 # 4. Orquestación
 # ----------------------------------------------------------------------
-def main(modo: str = "oficial") -> None:
+def main(modo: str = "oficial", nombre_archivo: str = ARCHIVO_SEGMENTOS) -> None:
     """Ejecuta el flujo completo de ingesta de la Fuente 1."""
     log.info("=== INICIO INGESTA FUENTE 1: CANAL DE PANAMÁ ===")
     log.info("Modo de ingesta: %s | Timestamp: %s", modo, datetime.now().isoformat())
 
-    df_crudo = ingestar(modo=modo)
+    df_crudo = ingestar(modo=modo, nombre_archivo=nombre_archivo)
     guardar(df_crudo, "canal_crudo.csv")
 
     df_limpio = limpiar(df_crudo)
@@ -276,5 +320,10 @@ if __name__ == "__main__":
         choices=["oficial", "local"],
         help="Fuente de ingesta (default: oficial = datos reales de la ACP)",
     )
+    parser.add_argument(
+        "--archivo",
+        default=ARCHIVO_SEGMENTOS,
+        help="CSV dentro de data/raw/ usado por --modo local",
+    )
     args = parser.parse_args()
-    main(modo=args.modo)
+    main(modo=args.modo, nombre_archivo=args.archivo)

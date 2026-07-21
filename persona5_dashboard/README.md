@@ -68,7 +68,7 @@ streamlit run persona5_dashboard/src/pages/03_resumen_llm.py
 ## Páginas del Dashboard
 
 ### 🏠 Inicio (app.py)
-- KPIs principales: tránsitos/año promedio, peajes/año promedio, calado, modelo ML
+- KPIs principales: tránsitos/año promedio, peajes/año promedio, disponibilidad de calado, modelo ML
 - Serie anual histórica + pronóstico
 - Insights clave del análisis
 - Comparativa de períodos (sequía vs baseline vs recuperación)

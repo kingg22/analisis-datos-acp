@@ -9,6 +9,7 @@ from pathlib import Path
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
+import pandas as pd
 
 src_dir = str(Path(__file__).resolve().parent)
 if src_dir not in sys.path:
@@ -76,7 +77,11 @@ with col1:
 with col2:
     st.metric("Peajes/Año (prom)", f"${serie['peajes_totales_usd'].mean():,.0f}")
 with col3:
-    st.metric("Calado Promedio", f"{serie['calado_promedio_pies'].mean():.1f} pies")
+    calado_promedio = serie["calado_promedio_pies"].mean()
+    calado_texto = (
+        f"{calado_promedio:.1f} pies" if pd.notna(calado_promedio) else "No disponible"
+    )
+    st.metric("Calado Promedio", calado_texto)
 with col4:
     modelo = resumen.get("modelo_ganador", "N/A").replace("_", " ")
     st.metric("Modelo ML", modelo)

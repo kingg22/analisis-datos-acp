@@ -10,22 +10,21 @@ Documenta la PROCEDENCIA de cada dato y hace el proceso REPRODUCIBLE: cualquiera
 puede ejecutarlo y obtener exactamente los mismos CSV. Incluye una verificación
 de integridad: la suma de los tránsitos por segmento de cada año fiscal debe
 coincidir EXACTAMENTE con el total oficial publicado por la ACP (si no coincide,
-el script aborta con AssertionError). Esa verificación es la garantía de que las
-cifras se transcribieron correctamente y no fueron inventadas: números al azar
-no sumarían los totales oficiales.
+el script aborta con AssertionError). Esta comprobación detecta errores de suma;
+la fidelidad de cada segmento se audita contra la gráfica citada para cada fila.
 
 Fuentes (PDF públicos, descargables del sitio oficial de la ACP:
 https://pancanal.com/en/maritime-services/annual-report/):
 
   - Informe Anual 2025 (ACP)
       https://pancanal.com/wp-content/uploads/2026/02/Informe-2025Eng.pdf
-      · Tránsitos por segmento FY2023–FY2025  -> "Graph 6. Transits per Market Segment" (p. 47)
+      · Tránsitos por segmento FY2023–FY2025  -> "Graph 6. Transits per Market Segment" (p. 46)
       · Tonelaje PC/UMS por año fiscal          -> "Graph 10. Total Tonnage"
       · Peajes por año fiscal                    -> Estados financieros auditados ("Toll revenue")
 
   - Informe Anual 2022 (ACP)
       https://pancanal.com/wp-content/uploads/2023/02/Informe-2022-Eng.pdf
-      · Tránsitos por segmento FY2020–FY2022  -> "Graph 6. Transits by Market Segment" (p. 36)
+      · Tránsitos por segmento FY2020–FY2022  -> "Graph 6. Transits by Market Segment" (p. 35)
       · Tonelaje PC/UMS                          -> "Graph 4. Vessel Tonnage"
       · Peajes                                   -> "Graph 3. Tolls" / estados financieros
 
@@ -45,14 +44,22 @@ import os
 RUTA_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUTA_RAW = os.path.join(RUTA_BASE, "data", "raw")
 
-FUENTE_SEGMENTOS = (
-    "ACP - Informe Anual 2025 (Graph 6, FY2023-2025) e Informe Anual 2022 "
-    "(Graph 6, FY2020-2022)"
-)
-FUENTE_INDICADORES = (
-    "ACP - Informes Anuales 2022 y 2025 (tonelaje PC/UMS y peajes de los "
-    "estados financieros auditados)"
-)
+FUENTE_SEGMENTOS = {
+    2020: "ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",
+    2021: "ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",
+    2022: "ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",
+    2023: "ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",
+    2024: "ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",
+    2025: "ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",
+}
+FUENTE_INDICADORES = {
+    2020: "ACP - Informe Anual 2022, Gráficas 3 y 4, p. 34 (AF2020)",
+    2021: "ACP - Informe Anual 2022, Gráficas 3 y 4, p. 34 y estados financieros (AF2021)",
+    2022: "ACP - Informe Anual 2022, Gráficas 3 y 4, p. 34 y estados financieros (AF2022)",
+    2023: "ACP - Informe Anual 2025, Gráficas 3 y 4, p. 45 (AF2023)",
+    2024: "ACP - Informe Anual 2025, Gráficas 3 y 4, p. 45 (AF2024)",
+    2025: "ACP - Informe Anual 2025, Gráficas 3 y 4, p. 45 (AF2025)",
+}
 
 # Años fiscales cubiertos (AF de la ACP: oct del año previo a sep del año dado).
 ANIOS = [2020, 2021, 2022, 2023, 2024, 2025]
@@ -92,7 +99,8 @@ TOTALES_OFICIALES = {
 #    "" = no disponible en las fuentes consultadas para ese año.
 # ---------------------------------------------------------------------------
 INDICADORES_ANUALES = {
-    # anio_fiscal: (toneladas_pcums_millones, peajes_millones_balboas, ingresos_totales_millones_balboas)
+    # anio_fiscal: (toneladas_pcums_millones, peajes_millones_balboas,
+    #                ingresos_totales_millones_balboas)
     2020: (475.2, 2663.0, ""),      # Informe 2022: Graph 4 / Graph 3
     2021: (516.7, 2968.2, 3958.6),  # Informe 2022: estados financieros
     2022: (518.8, 3027.9, 4322.6),  # Informe 2022: estados financieros
@@ -116,17 +124,17 @@ def verificar() -> None:
 
 def escribir_segmentos(ruta: str) -> None:
     with open(ruta, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")
         w.writerow(["anio_fiscal", "segmento", "transitos", "fuente"])
         for segmento, vals in TRANSITOS_POR_SEGMENTO.items():
             for j, anio in enumerate(ANIOS):
-                w.writerow([anio, segmento, vals[j], FUENTE_SEGMENTOS])
+                w.writerow([anio, segmento, vals[j], FUENTE_SEGMENTOS[anio]])
     print(f"Escrito: {ruta}")
 
 
 def escribir_indicadores(ruta: str) -> None:
     with open(ruta, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")
         w.writerow([
             "anio_fiscal", "transitos_totales", "toneladas_pcums_millones",
             "peajes_millones_balboas", "ingresos_totales_millones_balboas", "fuente",
@@ -134,7 +142,8 @@ def escribir_indicadores(ruta: str) -> None:
         for anio in ANIOS:
             ton, peajes, ingresos = INDICADORES_ANUALES[anio]
             w.writerow([
-                anio, TOTALES_OFICIALES[anio], ton, peajes, ingresos, FUENTE_INDICADORES,
+                anio, TOTALES_OFICIALES[anio], ton, peajes, ingresos,
+                FUENTE_INDICADORES[anio],
             ])
     print(f"Escrito: {ruta}")
 

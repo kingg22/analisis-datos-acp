@@ -170,7 +170,8 @@ def fig_heatmap_correlacion(df: pd.DataFrame) -> Path:
     log.info("Generando figura: heatmap de correlación")
     cols = ["transitos", "calado_promedio_pies", "toneladas_cp_suez", "peajes_usd",
             "precio_barril_usd_prom", "ratio_toneladas_por_transito", "peaje_por_tonelada_usd"]
-    num = df[[c for c in cols if c in df.columns]].copy()
+    disponibles = [c for c in cols if c in df.columns and df[c].notna().any()]
+    num = df[disponibles].copy()
     corr = num.corr()
 
     fig, ax = plt.subplots(figsize=(9, 7))
