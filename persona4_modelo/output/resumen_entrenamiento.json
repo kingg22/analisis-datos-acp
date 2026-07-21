@@ -1,59 +1,26 @@
 {
-  "modelo_ganador": "Gradient_Boosting",
-  "criterio_seleccion": "menor MAPE en validación cruzada temporal",
-  "corte_entrenamiento": "2024-09-01",
-  "n_train": 48,
-  "n_test": 15,
-  "cross_validation": {
-    "Regresion_Lineal": {
-      "MAPE_cv": 26.262026406452243,
-      "MAPE_cv_std": 24.140023783688537,
-      "MAE_cv": 222.41238244897417
-    },
-    "Random_Forest": {
-      "MAPE_cv": 11.418039302977196,
-      "MAPE_cv_std": 9.824227692182726,
-      "MAE_cv": 97.54604992784991
-    },
-    "Gradient_Boosting": {
-      "MAPE_cv": 6.939346899212157,
-      "MAPE_cv_std": 3.9054531980586775,
-      "MAE_cv": 65.55919491711555
-    }
-  },
+  "modelo_ganador": "Media_Historica",
+  "criterio_seleccion": "menor MAPE en validación Leave-One-Out",
+  "n_observaciones": 6,
+  "granularidad": "anual (año fiscal ACP)",
   "metricas": {
-    "Naive_Estacional": {
-      "MAE": 269.26666666666665,
-      "RMSE": 300.07143593928873,
-      "MAPE": 23.658743487379297,
-      "R2": -5.451697087195608
+    "Media_Historica": {
+      "MAE": 815.6,
+      "RMSE": 1174.5721944606044,
+      "MAPE": 6.529897210758675,
+      "R2": -0.4399999999999997
     },
-    "Regresion_Lineal": {
-      "MAE": 153.08226435307972,
-      "RMSE": 166.46333257784525,
-      "MAPE": 13.262473009614247,
-      "R2": -0.9854631246592642,
-      "MAPE_cv": 26.262026406452243,
-      "MAPE_cv_std": 24.140023783688537,
-      "MAE_cv": 222.41238244897417
+    "Tendencia_Lineal": {
+      "MAE": 1152.3903205531108,
+      "RMSE": 1336.9620895181704,
+      "MAPE": 9.060144442095767,
+      "R2": -0.8656975717924298
     },
-    "Random_Forest": {
-      "MAE": 163.07451990740762,
-      "RMSE": 179.7438132722461,
-      "MAPE": 14.040216612840286,
-      "R2": -1.3149017204521791,
-      "MAPE_cv": 11.418039302977196,
-      "MAPE_cv_std": 9.824227692182726,
-      "MAE_cv": 97.54604992784991
-    },
-    "Gradient_Boosting": {
-      "MAE": 171.21124595281967,
-      "RMSE": 187.4167376880054,
-      "MAPE": 14.786846759767943,
-      "R2": -1.5167576858902452,
-      "MAPE_cv": 6.939346899212157,
-      "MAPE_cv_std": 3.9054531980586775,
-      "MAE_cv": 65.55919491711555
+    "Tendencia_mas_Precio": {
+      "MAE": 1393.1949954524296,
+      "RMSE": 1721.1429775200254,
+      "MAPE": 10.883536310851543,
+      "R2": -2.0919820163326723
     }
   }
 }

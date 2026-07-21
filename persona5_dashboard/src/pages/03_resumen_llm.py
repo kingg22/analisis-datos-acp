@@ -46,7 +46,7 @@ def build_context() -> str:
 
     stats_df = load_stats_totales()
     stats_row = stats_df[stats_df["Unnamed: 0"] == "mean"].iloc[0]
-    parts.append(f"## Estadísticas Generales\n- Promedio tránsitos/mes: {stats_row['transitos']:.0f}\n- Peajes promedio: ${stats_row['peajes_usd']:,.0f}\n- Calado promedio: {stats_row['calado_promedio_pies']:.1f} pies")
+    parts.append(f"## Estadísticas Generales (por segmento y año fiscal)\n- Tránsitos promedio: {stats_row['transitos']:.0f}\n- Peajes promedio: ${stats_row['peajes_usd']:,.0f}\n- Calado promedio: {stats_row['calado_promedio_pies']:.1f} pies")
 
     insights = load_insights()
     parts.append("## Insights del Análisis\n" + "\n".join(f"- **{i['titulo']}**: {i['detalle']}" for i in insights))
@@ -62,11 +62,11 @@ def build_context() -> str:
     parts.append(f"## Comparativa de Períodos\n{periodos_agg.to_string()}")
 
     resumen_ml = load_resumen_entrenamiento()
-    best_cv = resumen_ml["cross_validation"].get(resumen_ml["modelo_ganador"], {})
-    parts.append(f"## Modelo ML\n- Ganador: {resumen_ml['modelo_ganador']}\n- MAPE CV: {best_cv.get('MAPE_cv', 0):.2f}%")
+    met = resumen_ml.get("metricas", {}).get(resumen_ml["modelo_ganador"], {})
+    parts.append(f"## Modelo ML\n- Ganador: {resumen_ml['modelo_ganador']}\n- MAPE (Leave-One-Out): {met.get('MAPE', 0):.2f}%")
 
     pred = load_predicciones_2026()
-    parts.append(f"## Predicciones 2026\n{pred[['fecha','transitos_predichos']].to_string(index=False)}")
+    parts.append(f"## Pronóstico próximos años fiscales\n{pred[['anio_fiscal','transitos_predichos']].to_string(index=False)}")
 
     features = load_importancia_features()
     parts.append(f"## Importancia Features\n{features.to_string()}")
@@ -114,16 +114,16 @@ def generate_local_summary(context: str, prompt: str) -> str:
     insights = load_insights()
     pred = load_predicciones_2026()
     resumen_ml = load_resumen_entrenamiento()
-    best_cv = resumen_ml["cross_validation"].get(resumen_ml["modelo_ganador"], {})
+    met = resumen_ml.get("metricas", {}).get(resumen_ml["modelo_ganador"], {})
 
     summary = f"""# 📋 Resumen Ejecutivo — Canal de Panamá
 *Generado automáticamente*
 
 ---
 
-## 📊 Panorama General
+## 📊 Panorama General (por segmento y año fiscal)
 
-- **Promedio tránsitos/mes:** {int(stats_row['transitos']):,}
+- **Tránsitos promedio:** {int(stats_row['transitos']):,}
 - **Peajes promedio:** ${stats_row['peajes_usd']:,.0f}
 - **Calado promedio:** {stats_row['calado_promedio_pies']:.1f} pies
 
@@ -140,20 +140,18 @@ def generate_local_summary(context: str, prompt: str) -> str:
 ## 🤖 Modelo Predictivo
 
 - **Modelo ganador:** {resumen_ml['modelo_ganador'].replace('_', ' ')}
-- **MAPE (CV):** {best_cv.get('MAPE_cv', 0):.2f}%
-- **Muestra entrenamiento:** {resumen_ml.get('n_train', 'N/A')} meses
+- **MAPE (Leave-One-Out):** {met.get('MAPE', 0):.2f}%
+- **Observaciones:** {resumen_ml.get('n_observaciones', 'N/A')} años fiscales
 
 ---
 
-## 🔮 Pronóstico 2026
+## 🔮 Pronóstico (próximos años fiscales)
 
-| Mes | Tránsitos Predichos |
-|-----|---------------------|
+| Año fiscal | Tránsitos Predichos |
+|------------|---------------------|
 """
     for _, row in pred.iterrows():
-        fecha = row['fecha']
-        mes = fecha.strftime('%B %Y') if hasattr(fecha, 'strftime') else str(fecha)
-        summary += f"| {mes} | {int(row['transitos_predichos']):,} |\n"
+        summary += f"| FY{int(row['anio_fiscal'])} | {int(row['transitos_predichos']):,} |\n"
 
     summary += """
 ---

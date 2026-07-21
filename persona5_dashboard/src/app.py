@@ -18,10 +18,8 @@ from utils.data_loader import (
     load_agregado_por_periodo,
     load_agregado_serie_total,
     load_insights,
-    load_metricas_modelos,
     load_predicciones_2026,
     load_resumen_entrenamiento,
-    load_stats_totales,
     load_tendencia_anual,
 )
 
@@ -64,7 +62,6 @@ st.title("🏠 Panorama General — Canal de Panamá")
 try:
     serie = load_agregado_serie_total()
     pred = load_predicciones_2026()
-    stats_df = load_stats_totales()
     resumen = load_resumen_entrenamiento()
     insights = load_insights()
     periodos = load_agregado_por_periodo()
@@ -73,27 +70,25 @@ except Exception as e:
     st.error(f"Error cargando datos: {e}")
     st.stop()
 
-stats_row = stats_df[stats_df["Unnamed: 0"] == "mean"].iloc[0]
-
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.metric("Promedio Tránsitos/Mes", f"{int(stats_row['transitos']):,}")
+    st.metric("Tránsitos/Año (prom)", f"{serie['transitos_totales'].mean():,.0f}")
 with col2:
-    st.metric("Peajes Promedio", f"${stats_row['peajes_usd']:,.0f}")
+    st.metric("Peajes/Año (prom)", f"${serie['peajes_totales_usd'].mean():,.0f}")
 with col3:
-    st.metric("Calado Promedio", f"{stats_row['calado_promedio_pies']:.1f} pies")
+    st.metric("Calado Promedio", f"{serie['calado_promedio_pies'].mean():.1f} pies")
 with col4:
     modelo = resumen.get("modelo_ganador", "N/A").replace("_", " ")
     st.metric("Modelo ML", modelo)
 
 st.divider()
 
-st.subheader("📈 Evolución Mensual de Tránsitos")
+st.subheader("📈 Evolución Anual de Tránsitos")
 
 fig = go.Figure()
 fig.add_trace(
     go.Scatter(
-        x=serie["fecha"],
+        x=serie["anio_fiscal"],
         y=serie["transitos_totales"],
         mode="lines+markers",
         name="Histórico",
@@ -102,15 +97,15 @@ fig.add_trace(
 )
 fig.add_trace(
     go.Scatter(
-        x=pred["fecha"],
+        x=pred["anio_fiscal"],
         y=pred["transitos_predichos"],
         mode="lines+markers",
-        name="Pronóstico 2026",
+        name="Pronóstico",
         line=dict(color="#ff7f0e", width=2, dash="dash"),
     )
 )
 fig.update_layout(
-    xaxis_title="Fecha",
+    xaxis_title="Año fiscal",
     yaxis_title="Tránsitos",
     hovermode="x unified",
     height=400,
@@ -129,13 +124,13 @@ st.subheader("📊 Tendencia Anual")
 fig_tend = go.Figure()
 fig_tend.add_trace(
     go.Bar(
-        x=tendencia["anio"],
+        x=tendencia["anio_fiscal"],
         y=tendencia["transitos_anuales"],
         name="Tránsitos",
         marker_color="#1f77b4",
     )
 )
-fig_tend.update_layout(xaxis_title="Año", yaxis_title="Tránsitos", height=350, showlegend=False)
+fig_tend.update_layout(xaxis_title="Año fiscal", yaxis_title="Tránsitos", height=350, showlegend=False)
 st.plotly_chart(fig_tend, use_container_width=True)
 
 st.subheader("📊 Comparativa de Períodos")

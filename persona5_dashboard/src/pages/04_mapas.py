@@ -16,7 +16,7 @@ if src_dir not in sys.path:
     sys.path.insert(0, src_dir)
 
 from utils.data_loader import (
-    load_canal_serie_mensual,
+    load_canal_serie_anual,
     load_ranking_segmentos,
     load_agregado_por_segmento,
 )
@@ -114,14 +114,14 @@ with tab2:
 
 # ── Tab 3: Tránsitos por zona ──────────────────────────────────────────────
 with tab3:
-    st.subheader("Tránsitos Mensuales en el Tiempo")
+    st.subheader("Tránsitos Anuales en el Tiempo")
 
-    serie = load_canal_serie_mensual()
+    serie = load_canal_serie_anual()
 
     fig_cantidad = px.line(
-        serie, x="fecha", y="transitos_totales",
-        title="Tránsitos Mensuales del Canal",
-        labels={"fecha": "Fecha", "transitos_totales": "Tránsitos"},
+        serie, x="anio_fiscal", y="transitos_totales",
+        title="Tránsitos Anuales del Canal", markers=True,
+        labels={"anio_fiscal": "Año fiscal", "transitos_totales": "Tránsitos"},
     )
     fig_cantidad.update_traces(line=dict(color="#1f77b4", width=2))
     fig_cantidad.update_layout(height=400)
@@ -140,17 +140,17 @@ with tab3:
     st.plotly_chart(fig_bars, use_container_width=True)
 
     # Mapa de calor por mes y segmento
-    st.subheader("Mapa de Calor: Segmento × Mes")
+    st.subheader("Mapa de Calor: Segmento × Año Fiscal")
     segmentos_df = load_agregado_por_segmento()
     if not segmentos_df.empty and "segmento" in segmentos_df.columns:
         pivot = segmentos_df.pivot_table(
-            index="segmento", columns="anio",
+            index="segmento", columns="anio_fiscal",
             values="transitos", aggfunc="sum",
         )
         fig_heat = px.imshow(
-            pivot, title="Tránsitos por Segmento y Año",
+            pivot, title="Tránsitos por Segmento y Año Fiscal",
             color_continuous_scale="YlOrRd", aspect="auto",
-            labels=dict(x="Año", y="Segmento", color="Tránsitos"),
+            labels=dict(x="Año fiscal", y="Segmento", color="Tránsitos"),
         )
         fig_heat.update_layout(height=400)
         st.plotly_chart(fig_heat, use_container_width=True)

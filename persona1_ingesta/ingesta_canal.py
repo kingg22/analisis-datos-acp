@@ -7,33 +7,32 @@ Responsable: PERSONA 1 - Ingesta de Datos (Fuente 1)
 Proyecto: Grupo 8 - Análisis de Datos del Canal de Panamá
 Curso: Segundo Parcial - Pipeline + Visualización
 
-Este módulo descarga, limpia y estructura datos públicos de tránsitos
-del Canal de Panamá publicados por la Autoridad del Canal de Panamá (ACP)
-a través del Portal de Datos Abiertos de Panamá (datosabiertos.gob.pa)
-y el Instituto Nacional de Estadística y Censo (INEC).
+Este módulo carga, limpia y estructura datos públicos de tránsitos del Canal
+de Panamá publicados por la Autoridad del Canal de Panamá (ACP).
 
-FUENTES PÚBLICAS:
-  1. Portal de Datos Abiertos de Panamá  -> https://www.datosabiertos.gob.pa
-  2. INEC (Sección Transporte/Canal)      -> https://www.inec.gob.pa
+GRANULARIDAD: ANUAL (año fiscal de la ACP, oct–sep). La ACP publica el desglose
+por segmento de mercado a nivel anual, así que el proyecto trabaja con datos
+anuales reales — sin inventar una distribución mensual.
 
-NOTA IMPORTANTE:
-  Las URLs de descarga directa (CSV) de los portales públicos cambian
-  con cada actualización. El script soporta dos modos:
-    - modo "url"  : descarga el CSV desde una URL pública configurada.
-    - modo "local": lee un CSV ya descargado manualmente en data/raw/.
-  Mientras el equipo confirma la URL definitiva, se incluye un generador
-  de datos de muestra (data_muestra) basado en cifras oficiales reales
-  publicadas por la ACP, para que Persona 3, 4 y 5 puedan avanzar.
+FUENTE PÚBLICA REAL (modo por defecto "oficial"):
+  Los tránsitos por segmento y los indicadores anuales (tonelaje PC/UMS, peajes)
+  provienen de los INFORMES ANUALES OFICIALES de la ACP, guardados en data/raw/
+  como CSV por el script src/construir_datos_acp.py (que cita cada cifra y
+  verifica que sumen los totales oficiales). Fuentes:
+    - Informe Anual 2025 -> años fiscales 2023, 2024 y 2025.
+    - Informe Anual 2022 -> años fiscales 2020, 2021 y 2022.
+
+MODO ADICIONAL:
+    - "local" : lee un CSV ya descargado manualmente en data/raw/ (por si en el
+                futuro la ACP publica un CSV descargable).
 """
 
 import os
-import io
 import logging
 from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import requests
 
 # ----------------------------------------------------------------------
 # Configuración
@@ -42,9 +41,25 @@ RUTA_BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUTA_RAW = os.path.join(RUTA_BASE, "data", "raw")
 RUTA_PROCESSED = os.path.join(RUTA_BASE, "data", "processed")
 
-# URL de descarga directa de la fuente pública (rellenar cuando se confirme).
-# Ejemplo de patrón típico del portal de Datos Abiertos de Panamá:
-URL_CANAL_CSV = os.getenv("URL_CANAL_CSV", "")  # configurar por variable de entorno
+# Archivos de datos oficiales reales (ver docstring y docs/FUENTE_DATOS.md).
+ARCHIVO_SEGMENTOS = "acp_transitos_por_segmento_af.csv"
+ARCHIVO_INDICADORES = "acp_indicadores_anuales_af.csv"
+
+# Calado nominal de referencia por segmento (en pies). NO proviene de la ACP:
+# es un valor típico ilustrativo para conservar la columna que usa el pipeline.
+# El informe anual de la ACP no publica calado promedio por segmento.
+CALADO_NOMINAL_PIES = {
+    "Graneles_secos": 39.0,
+    "Tanqueros_quimiqueros": 38.0,
+    "Portacontenedores": 43.0,
+    "Gas_licuado_GLP": 36.0,
+    "Vehiculos_RoRo": 34.0,
+    "Carga_refrigerada": 33.0,
+    "Carga_general": 32.0,
+    "Gas_natural_GNL": 41.0,
+    "Pasajeros": 28.0,
+    "Otros": 35.0,
+}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -56,18 +71,8 @@ log = logging.getLogger("ingesta_canal")
 # ----------------------------------------------------------------------
 # 1. Ingesta
 # ----------------------------------------------------------------------
-def descargar_desde_url(url: str, timeout: int = 30) -> pd.DataFrame:
-    """Descarga un CSV público desde una URL y lo devuelve como DataFrame."""
-    log.info("Descargando datos desde URL: %s", url)
-    respuesta = requests.get(url, timeout=timeout)
-    respuesta.raise_for_status()
-    df = pd.read_csv(io.StringIO(respuesta.content.decode("utf-8", errors="replace")))
-    log.info("Descarga completada: %d filas, %d columnas", df.shape[0], df.shape[1])
-    return df
-
-
 def leer_desde_local(nombre_archivo: str) -> pd.DataFrame:
-    """Lee un CSV descargado manualmente y guardado en data/raw/."""
+    """Lee un CSV guardado en data/raw/."""
     ruta = os.path.join(RUTA_RAW, nombre_archivo)
     log.info("Leyendo archivo local: %s", ruta)
     df = pd.read_csv(ruta)
@@ -75,97 +80,83 @@ def leer_desde_local(nombre_archivo: str) -> pd.DataFrame:
     return df
 
 
-def data_muestra() -> pd.DataFrame:
+def cargar_datos_oficiales() -> pd.DataFrame:
     """
-    Genera un dataset de muestra mensual de tránsitos del Canal de Panamá.
+    Construye la tabla ANUAL por segmento a partir de los datos OFICIALES
+    reales de la ACP guardados en data/raw/.
 
-    Las cifras base provienen de estadísticas oficiales reales de la ACP:
-      - AF2024: 11,240 tránsitos totales (alto + bajo calado).
-      - Segmentos principales AF2025: portacontenedores (2,893),
-        graneleros (2,230), quimiqueros (2,218).
-    El generador construye una serie temporal mensual coherente con
-    estacionalidad y tendencia, útil para desarrollo y pruebas del
-    pipeline mientras se confirma la fuente CSV definitiva.
+    Proceso:
+      1. Lee los tránsitos anuales por segmento (cifras oficiales verificadas).
+      2. Lee los indicadores anuales (tonelaje PC/UMS y peajes oficiales).
+      3. Reparte el tonelaje y los peajes anuales oficiales de cada año fiscal
+         de forma proporcional a los tránsitos de cada segmento (prorrateo de una
+         cifra real; la suma por año fiscal reproduce el total oficial).
+
+    Devuelve un DataFrame con una fila por (anio_fiscal, segmento).
     """
-    log.info("Generando dataset de MUESTRA basado en cifras oficiales ACP")
-    rng = np.random.default_rng(42)
-
-    # Rango: octubre 2019 (AF2020) hasta diciembre 2025
-    fechas = pd.date_range(start="2019-10-01", end="2025-12-01", freq="MS")
-
-    segmentos = {
-        "Portacontenedores": 240,
-        "Graneles_secos": 185,
-        "Quimiqueros": 185,
-        "Tanqueros": 120,
-        "Carga_refrigerada": 70,
-        "Vehiculos_RoRo": 55,
-        "Gas_licuado_GLP": 45,
-        "Gas_natural_GNL": 30,
-        "Pasajeros": 15,
-        "Otros": 40,
-    }
+    log.info("Cargando datos OFICIALES de la ACP desde data/raw/")
+    for archivo in (ARCHIVO_SEGMENTOS, ARCHIVO_INDICADORES):
+        if not os.path.exists(os.path.join(RUTA_RAW, archivo)):
+            raise FileNotFoundError(
+                f"No se encontró data/raw/{archivo}. "
+                "Genéralo primero con: python src/construir_datos_acp.py"
+            )
+    seg = leer_desde_local(ARCHIVO_SEGMENTOS)
+    ind = leer_desde_local(ARCHIVO_INDICADORES).set_index("anio_fiscal")
 
     filas = []
-    for i, fecha in enumerate(fechas):
-        # Tendencia leve a la baja en 2023 (crisis de sequía) y recuperación 2025
-        factor_sequia = 0.72 if fecha.year == 2023 and fecha.month >= 6 else 1.0
-        factor_sequia = 0.78 if (fecha.year == 2024 and fecha.month <= 5) else factor_sequia
-        factor_recuperacion = 1.18 if fecha.year == 2025 else 1.0
-        # Estacionalidad: mayor tránsito en temporada alta (oct-ene)
-        estacional = 1.0 + 0.08 * np.sin((fecha.month / 12) * 2 * np.pi)
+    for anio_fiscal, grupo in seg.groupby("anio_fiscal"):
+        total_transitos_af = int(grupo["transitos"].sum())
+        toneladas_af = float(ind.loc[anio_fiscal, "toneladas_pcums_millones"]) * 1_000_000
+        peajes_millones = ind.loc[anio_fiscal, "peajes_millones_balboas"]
+        peajes_af = float(peajes_millones) * 1_000_000 if pd.notna(peajes_millones) else 0.0
 
-        for segmento, base in segmentos.items():
-            ruido = rng.normal(1.0, 0.06)
-            transitos = int(
-                base * estacional * factor_sequia * factor_recuperacion * ruido
-            )
-            # Calado y tonelaje promedio aproximados por segmento
-            calado = round(rng.normal(40, 4), 1)
-            toneladas_cp_suez = int(transitos * rng.normal(45000, 8000))
-            peajes_usd = int(transitos * rng.normal(280000, 40000))
+        ton_por_transito = toneladas_af / total_transitos_af if total_transitos_af else 0.0
+        peaje_por_transito = peajes_af / total_transitos_af if total_transitos_af else 0.0
 
+        for _, r in grupo.iterrows():
+            segmento = r["segmento"]
+            transitos = int(r["transitos"])
             filas.append(
                 {
-                    "fecha": fecha,
-                    "anio": fecha.year,
-                    "mes": fecha.month,
-                    "anio_fiscal": fecha.year + 1 if fecha.month >= 10 else fecha.year,
+                    "anio_fiscal": int(anio_fiscal),
                     "segmento": segmento,
-                    "transitos": max(transitos, 0),
-                    "calado_promedio_pies": calado,
-                    "toneladas_cp_suez": max(toneladas_cp_suez, 0),
-                    "peajes_usd": max(peajes_usd, 0),
+                    "transitos": transitos,
+                    "calado_promedio_pies": CALADO_NOMINAL_PIES.get(segmento, 35.0),
+                    "toneladas_cp_suez": int(round(transitos * ton_por_transito)),
+                    "peajes_usd": int(round(transitos * peaje_por_transito)),
                 }
             )
 
-    df = pd.DataFrame(filas)
-    log.info("Dataset de muestra generado: %d filas", df.shape[0])
+    df = pd.DataFrame(filas).sort_values(["anio_fiscal", "segmento"]).reset_index(drop=True)
+    log.info(
+        "Dataset oficial construido: %d filas (%d años fiscales, %d segmentos)",
+        df.shape[0], seg["anio_fiscal"].nunique(), seg["segmento"].nunique(),
+    )
     return df
 
 
-def ingestar(modo: str = "muestra", nombre_archivo: str = "transitos_canal.csv") -> pd.DataFrame:
+def ingestar(modo: str = "oficial", nombre_archivo: str = "transitos_canal.csv") -> pd.DataFrame:
     """
     Punto de entrada de la ingesta.
 
     Parámetros
     ----------
-    modo : {"url", "local", "muestra"}
-        - "url"     : descarga desde URL_CANAL_CSV.
+    modo : {"oficial", "local"}
+        - "oficial" : construye la serie anual desde los datos oficiales de la ACP
+                      guardados en data/raw/ (default).
         - "local"   : lee data/raw/<nombre_archivo>.
-        - "muestra" : genera datos de muestra (default, para desarrollo).
     """
-    if modo == "url":
-        if not URL_CANAL_CSV:
-            raise ValueError(
-                "URL_CANAL_CSV no configurada. Definir variable de entorno "
-                "o usar modo='local' / modo='muestra'."
-            )
-        return descargar_desde_url(URL_CANAL_CSV)
+    if modo in ("muestra", "sintetica", "mensual"):
+        log.warning(
+            "El modo '%s' ya no existe; el proyecto usa datos anuales oficiales. "
+            "Usando modo 'oficial'.", modo,
+        )
+        modo = "oficial"
+    if modo == "oficial":
+        return cargar_datos_oficiales()
     if modo == "local":
         return leer_desde_local(nombre_archivo)
-    if modo == "muestra":
-        return data_muestra()
     raise ValueError(f"Modo no válido: {modo}")
 
 
@@ -174,20 +165,18 @@ def ingestar(modo: str = "muestra", nombre_archivo: str = "transitos_canal.csv")
 # ----------------------------------------------------------------------
 def limpiar(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Limpieza y estandarización del dataset de tránsitos.
+    Limpieza y estandarización del dataset anual de tránsitos.
 
     Operaciones:
       - Normaliza nombres de columnas (minúsculas, sin espacios).
-      - Convierte 'fecha' a tipo datetime.
       - Elimina filas totalmente vacías y duplicados.
       - Maneja valores nulos en columnas numéricas (relleno con 0).
       - Valida que no existan tránsitos negativos.
-      - Ordena cronológicamente.
+      - Ordena por año fiscal y segmento.
     """
     log.info("Iniciando limpieza. Filas de entrada: %d", df.shape[0])
     df = df.copy()
 
-    # Normalizar nombres de columnas
     df.columns = (
         df.columns.str.strip()
         .str.lower()
@@ -195,54 +184,51 @@ def limpiar(df: pd.DataFrame) -> pd.DataFrame:
         .str.replace(r"[^\w]", "", regex=True)
     )
 
-    # Convertir fecha
-    if "fecha" in df.columns:
-        df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
-
-    # Eliminar filas y duplicados
     antes = df.shape[0]
     df = df.dropna(how="all")
     df = df.drop_duplicates()
     log.info("Eliminadas %d filas vacías/duplicadas", antes - df.shape[0])
 
-    # Manejo de nulos en numéricas
     columnas_numericas = df.select_dtypes(include=[np.number]).columns
     nulos = df[columnas_numericas].isna().sum().sum()
     if nulos:
         log.info("Rellenando %d valores nulos numéricos con 0", nulos)
         df[columnas_numericas] = df[columnas_numericas].fillna(0)
 
-    # Validar tránsitos no negativos
     if "transitos" in df.columns:
         negativos = (df["transitos"] < 0).sum()
         if negativos:
             log.warning("Corrigiendo %d tránsitos negativos a 0", negativos)
             df.loc[df["transitos"] < 0, "transitos"] = 0
 
-    # Ordenar
-    if "fecha" in df.columns:
-        df = df.sort_values("fecha").reset_index(drop=True)
+    orden = [c for c in ("anio_fiscal", "segmento") if c in df.columns]
+    if orden:
+        df = df.sort_values(orden).reset_index(drop=True)
 
     log.info("Limpieza completada. Filas de salida: %d", df.shape[0])
     return df
 
 
-def construir_serie_mensual(df: pd.DataFrame) -> pd.DataFrame:
+def construir_serie_anual(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Agrega los tránsitos por mes (todos los segmentos) para alimentar
+    Agrega los tránsitos por año fiscal (todos los segmentos) para alimentar
     el análisis de tendencias (Persona 3) y el modelo predictivo (Persona 4).
     """
-    if "fecha" not in df.columns or "transitos" not in df.columns:
-        log.warning("No se puede construir serie mensual: faltan columnas clave")
+    if "anio_fiscal" not in df.columns or "transitos" not in df.columns:
+        log.warning("No se puede construir serie anual: faltan columnas clave")
         return pd.DataFrame()
 
     serie = (
-        df.groupby(pd.Grouper(key="fecha", freq="MS"))["transitos"]
-        .sum()
-        .reset_index()
-        .rename(columns={"transitos": "transitos_totales"})
+        df.groupby("anio_fiscal", as_index=False)
+        .agg(
+            transitos_totales=("transitos", "sum"),
+            toneladas_totales=("toneladas_cp_suez", "sum"),
+            peajes_totales_usd=("peajes_usd", "sum"),
+        )
+        .sort_values("anio_fiscal")
+        .reset_index(drop=True)
     )
-    log.info("Serie mensual construida: %d meses", serie.shape[0])
+    log.info("Serie anual construida: %d años fiscales", serie.shape[0])
     return serie
 
 
@@ -261,7 +247,7 @@ def guardar(df: pd.DataFrame, nombre: str) -> str:
 # ----------------------------------------------------------------------
 # 4. Orquestación
 # ----------------------------------------------------------------------
-def main(modo: str = "muestra") -> None:
+def main(modo: str = "oficial") -> None:
     """Ejecuta el flujo completo de ingesta de la Fuente 1."""
     log.info("=== INICIO INGESTA FUENTE 1: CANAL DE PANAMÁ ===")
     log.info("Modo de ingesta: %s | Timestamp: %s", modo, datetime.now().isoformat())
@@ -272,9 +258,9 @@ def main(modo: str = "muestra") -> None:
     df_limpio = limpiar(df_crudo)
     ruta_limpio = guardar(df_limpio, "canal_limpio.csv")
 
-    serie = construir_serie_mensual(df_limpio)
+    serie = construir_serie_anual(df_limpio)
     if not serie.empty:
-        guardar(serie, "canal_serie_mensual.csv")
+        guardar(serie, "canal_serie_anual.csv")
 
     log.info("=== INGESTA COMPLETADA ===")
     log.info("Entregable principal para el pipeline: %s", ruta_limpio)
@@ -286,9 +272,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingesta de datos del Canal de Panamá")
     parser.add_argument(
         "--modo",
-        default="muestra",
-        choices=["url", "local", "muestra"],
-        help="Fuente de ingesta (default: muestra)",
+        default="oficial",
+        choices=["oficial", "local"],
+        help="Fuente de ingesta (default: oficial = datos reales de la ACP)",
     )
     args = parser.parse_args()
     main(modo=args.modo)

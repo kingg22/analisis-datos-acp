@@ -4,9 +4,15 @@
 Segundo Parcial · Pipeline + Visualización
 
 Este módulo cubre la **fase de modelado**: consume el dataset unificado de
-Persona 2 y entrena un modelo de Machine Learning para **predecir el volumen
-mensual de tránsitos** del Canal de Panamá, generando además un pronóstico a
-12 meses listo para el dashboard de Persona 5.
+Persona 2 y entrena un modelo para **predecir el volumen anual de tránsitos** del
+Canal de Panamá, generando un pronóstico de los próximos años fiscales para el
+dashboard de Persona 5.
+
+> **Nota importante sobre los datos:** la ACP publica el desglose por segmento a
+> nivel **anual** (año fiscal), por lo que la serie tiene pocos puntos (FY2020–
+> FY2025). Con tan pocos datos, el modelo apropiado es **simple e interpretable**
+> (tendencia lineal + precio del crudo), validado con **Leave-One-Out** — no un
+> ensemble de ML, que requeriría muchas más observaciones.
 
 ---
 
@@ -15,9 +21,9 @@ mensual de tránsitos** del Canal de Panamá, generando además un pronóstico a
 ```
 persona4_modelo/
 ├── src/
-│   ├── preparacion_datos.py   # Carga + ingeniería de features (lags, régimen, estacionalidad)
-│   ├── entrenamiento.py       # CV temporal + hold-out, compara 4 modelos, serializa el ganador
-│   ├── prediccion.py          # Pronóstico recursivo a 12 meses (2026)
+│   ├── preparacion_datos.py   # Carga + features (índice de tendencia, precio del crudo)
+│   ├── entrenamiento.py       # Leave-One-Out, compara 3 modelos, serializa el ganador
+│   ├── prediccion.py          # Pronóstico de los próximos años fiscales
 │   ├── visualizaciones.py     # 4 figuras PNG para el dashboard
 │   └── run_pipeline.py        # Orquestador (corre los 3 módulos en orden)
 ├── data/
@@ -58,10 +64,10 @@ python persona4_modelo/src/run_pipeline.py
 
 El orquestador corre en secuencia:
 
-1. `entrenamiento.py` — ingeniería de features, **validación cruzada temporal**
-   (5 folds, ventana expansiva) + **hold-out** 2024-10→2025-12, compara 4
-   modelos, selecciona el de menor MAPE de CV y lo reentrena con toda la serie.
-2. `prediccion.py` — pronóstico recursivo de 12 meses (2026).
+1. `entrenamiento.py` — construye features, evalúa con **Leave-One-Out**, compara
+   3 modelos (media histórica, tendencia lineal, tendencia + precio), selecciona
+   el de menor MAPE y lo reentrena con toda la serie.
+2. `prediccion.py` — pronóstico de los próximos años fiscales (FY2026–FY2027).
 3. `visualizaciones.py` — 4 figuras PNG.
 
 ### Módulos individuales
@@ -80,21 +86,20 @@ python persona4_modelo/src/visualizaciones.py
 - **Persona 2** (recomendada): provee `persona2_pipeline/data/processed/dataset_unificado.csv`.
   Si no existe, el módulo recae automáticamente en el agregado de Persona 3
   (`agregado_serie_total.csv`, sin precio) para no bloquear el desarrollo.
-- **Persona 3**: las definiciones de régimen (sequía/recuperación) y la
-  recomendación de hold-out provienen de `HALLAZGOS.md`.
+- **Persona 3**: las definiciones de régimen (sequía FY2024 / recuperación FY2025)
+  provienen de su análisis.
 
 ---
 
-## Resultados (modo muestra)
+## Resultados
 
-| | Modelo ganador | MAPE (CV temporal) | MAPE (hold-out 2025) |
-|---|---|---:|---:|
-| | **Gradient Boosting** | **6.94%** (±3.91) | 14.79% |
+| Modelo ganador | MAPE (Leave-One-Out) |
+|---|---:|
+| **Media histórica** | **~6.5%** |
 
-> El hold-out 2025 es una **prueba de estrés** ante el quiebre de régimen
-> (año récord ausente del entrenamiento) — ver `docs/METODOLOGIA.md §3.2`.
-
-Predictor dominante: `periodo_sequia` (57.9% de importancia).
+> Con solo 6 años fiscales y la fuerte caída de la sequía (FY2024), un promedio
+> resulta más robusto que los modelos de tendencia en validación Leave-One-Out.
+> Es un resultado honesto: la serie anual no muestra una tendencia lineal clara.
 
 ---
 
@@ -104,10 +109,10 @@ Predictor dominante: `periodo_sequia` (57.9% de importancia).
 
 | Archivo | Contenido |
 |---|---|
-| `predicciones_2026.csv` | Pronóstico mensual 2026 (`fecha, transitos_predichos, anio, mes`) |
-| `predicciones_test.csv` | Reales vs predichos en el hold-out (para validación visual) |
-| `metricas_modelos.csv` | Tabla comparativa de los 4 modelos (CV + hold-out) |
-| `importancia_features.csv` | Peso de cada feature en el modelo ganador |
+| `predicciones_2026.csv` | Pronóstico anual (`anio_fiscal, transitos_predichos`) |
+| `predicciones_test.csv` | Reales vs predichos en Leave-One-Out (validación visual) |
+| `metricas_modelos.csv` | Tabla comparativa de los 3 modelos (LOO) |
+| `importancia_features.csv` | Coeficientes del modelo ganador (si es lineal) |
 | `resumen_entrenamiento.json` | Resumen completo (modelo ganador + todas las métricas) |
 
 ### Modelo en `models/`
@@ -120,10 +125,10 @@ Predictor dominante: `periodo_sequia` (57.9% de importancia).
 
 | Archivo | Uso sugerido en dashboard |
 |---|---|
-| `01_comparativa_modelos.png` | Sección "Modelo" · ranking de error |
-| `02_ajuste_test.png` | Validación: reales vs predichos |
-| `03_importancia_features.png` | "¿Qué impulsa la predicción?" |
-| `04_pronostico_2026.png` | **Tarjeta principal**: histórico + pronóstico 12 meses |
+| `01_comparativa_modelos.png` | Sección "Modelo" · ranking de error (LOO) |
+| `02_ajuste_loo.png` | Validación: reales vs predichos (Leave-One-Out) |
+| `03_importancia_features.png` | Coeficientes del modelo (si aplica) |
+| `04_pronostico_anual.png` | **Tarjeta principal**: histórico + pronóstico anual |
 
 ---
 

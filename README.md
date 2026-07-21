@@ -37,7 +37,7 @@ analisis-datos-acp/
 | **Persona 1** | Ingesta de datos del Canal de Panamá | ✅ |
 | **Persona 2** | Segunda fuente + pipeline de unión | ✅ |
 | **Persona 3** | Preprocesamiento + análisis de tendencias | ✅ |
-| **Persona 4** | Modelo predictivo (Gradient Boosting) | ✅ |
+| **Persona 4** | Modelo predictivo (tendencia anual + precio) | ✅ |
 | **Persona 5** | Dashboard Streamlit + resúmenes LLM | ✅ |
 
 ---
@@ -45,7 +45,7 @@ analisis-datos-acp/
 ## Fuentes de Datos
 
 1. **Canal de Panamá (ACP)** — Estadísticas de tránsito, tonelaje, peajes
-2. **Combustibles (Brent)** — Precios internacionales de petróleo
+2. **Petróleo crudo (FMI PCPS)** — Precio internacional del crudo, promedio anual
 
 ---
 
@@ -53,7 +53,7 @@ analisis-datos-acp/
 
 - **Python 3.13+**
 - **pandas** — Manipulación de datos
-- **scikit-learn** — Machine Learning (Gradient Boosting)
+- **scikit-learn** — Modelo de regresión (tendencia anual)
 - **Streamlit** — Dashboard interactivo
 - **Plotly** — Visualizaciones interactivas y mapas
 - **OpenAI / Anthropic** — Resúmenes ejecutivos con IA
@@ -106,11 +106,11 @@ python persona4_modelo/src/run_pipeline.py
 
 ## Resultados Clave
 
-- **72,543 tránsitos** analizados (oct 2019 – dic 2025)
-- **Segmento líder:** Portacontenedores (24.4%)
-- **Impacto sequía:** Pasajeros cayó 28.5%
-- **Modelo:** Gradient Boosting con MAPE 6.94% (CV)
-- **Pronóstico 2026:** Recuperación esperada con 1,071-1,179 tránsitos/mes
+- **79,674 tránsitos** analizados (años fiscales FY2020–FY2025)
+- **Segmento líder:** Portacontenedores (20.6%)
+- **Impacto sequía (FY2024):** los graneleros cayeron ~55% frente al baseline
+- **Modelo:** media histórica, MAPE ~6.5% (Leave-One-Out)
+- **Pronóstico FY2026:** ≈ 13,279 tránsitos
 
 ---
 

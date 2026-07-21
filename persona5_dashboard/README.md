@@ -68,27 +68,24 @@ streamlit run persona5_dashboard/src/pages/03_resumen_llm.py
 ## Páginas del Dashboard
 
 ### 🏠 Inicio (app.py)
-- KPIs principales: total tránsitos, promedio mensual, mes pico, modelo ML
-- Serie temporal histórica + pronóstico 2026
+- KPIs principales: tránsitos/año promedio, peajes/año promedio, calado, modelo ML
+- Serie anual histórica + pronóstico
 - Insights clave del análisis
 - Comparativa de períodos (sequía vs baseline vs recuperación)
 
 ### 📈 Tendencias (01_tendencias.py)
-- Evolución mensual de tránsitos
+- Evolución anual de tránsitos
 - Tendencia anual con barras
 - Distribución por segmento (ranking + pie chart)
-- Evolución temporal por segmento
-- Estacionalidad por mes calendario
-- Heatmap fase fiscal × segmento
-- Descomposición de la serie (observado/tendencia/estacional/residuo)
+- Evolución por segmento y año fiscal
 - Figuras EDA de Persona 3
 
 ### 🤖 Modelo Predictivo (02_modelo_predictivo.py)
-- Resumen del modelo ganador (Gradient Boosting, MAPE 6.94%)
-- Pronóstico interactivo 2026 con banda de confianza
-- Comparativa de modelos evaluados
-- Validación: reales vs predichos en hold-out
-- Importancia de features
+- Resumen del modelo ganador (media histórica, MAPE ~6.5% en Leave-One-Out)
+- Pronóstico interactivo de los próximos años fiscales
+- Comparativa de modelos evaluados (LOO)
+- Validación: reales vs predichos (Leave-One-Out)
+- Coeficientes del modelo (si aplica)
 - Figuras del modelo de Persona 4
 
 ### 🧠 Resumen LLM (03_resumen_llm.py)
@@ -102,7 +99,7 @@ streamlit run persona5_dashboard/src/pages/03_resumen_llm.py
 
 ## Dependencias de Otras Personas
 
-- **Persona 1** (obligatoria): `canal_serie_mensual.csv`, `canal_limpio.csv`
+- **Persona 1** (obligatoria): `canal_serie_anual.csv`, `canal_limpio.csv`
 - **Persona 2** (recomendada): `dataset_unificado.csv`
 - **Persona 3** (obligatoria): CSVs en `data/processed/`, `output/`, `figures/`
 - **Persona 4** (obligatoria): CSVs en `output/`, modelo serializado

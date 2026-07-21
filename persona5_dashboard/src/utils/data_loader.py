@@ -1,5 +1,5 @@
 """
-Utilidades de carga de datos para el dashboard.
+Utilidades de carga de datos para el dashboard (granularidad ANUAL).
 Resuelve rutas relativas desde la raíz del proyecto.
 """
 from __future__ import annotations
@@ -21,66 +21,54 @@ def _resolve(*relative: str) -> Path:
 
 
 # ── Persona 1 ────────────────────────────────────────────────────────────────
-def load_canal_serie_mensual() -> pd.DataFrame:
-    """Serie mensual de tránsitos (Persona 1)."""
+def load_canal_serie_anual() -> pd.DataFrame:
+    """Serie anual de tránsitos (Persona 1)."""
     return pd.read_csv(
-        _resolve("persona1_ingesta", "data", "processed", "canal_serie_mensual.csv"),
-        parse_dates=["fecha"],
+        _resolve("persona1_ingesta", "data", "processed", "canal_serie_anual.csv")
     )
 
 
 def load_canal_limpio() -> pd.DataFrame:
-    """Dataset limpio de tránsitos (Persona 1)."""
+    """Dataset limpio de tránsitos por año fiscal y segmento (Persona 1)."""
     return pd.read_csv(
-        _resolve("persona1_ingesta", "data", "processed", "canal_limpio.csv"),
-        parse_dates=["fecha"],
+        _resolve("persona1_ingesta", "data", "processed", "canal_limpio.csv")
     )
 
 
 # ── Persona 2 ────────────────────────────────────────────────────────────────
 def load_dataset_unificado() -> pd.DataFrame:
-    """Dataset unificado de ambas fuentes (Persona 2)."""
+    """Dataset unificado anual de ambas fuentes (Persona 2)."""
     return pd.read_csv(
-        _resolve("persona2_pipeline", "data", "processed", "dataset_unificado.csv"),
-        parse_dates=["fecha"],
+        _resolve("persona2_pipeline", "data", "processed", "dataset_unificado.csv")
     )
 
 
 # ── Persona 3 — Procesados ──────────────────────────────────────────────────
 def load_canal_unificado() -> pd.DataFrame:
-    """Dataset unificado con features derivados (Persona 3)."""
+    """Dataset unificado anual con features derivados (Persona 3)."""
     return pd.read_csv(
-        _resolve("persona3_analisis", "data", "processed", "canal_unificado.csv"),
-        parse_dates=["fecha"],
+        _resolve("persona3_analisis", "data", "processed", "canal_unificado.csv")
     )
 
 
 def load_agregado_serie_total() -> pd.DataFrame:
-    """Serie mensual total agregada (Persona 3)."""
+    """Serie anual total agregada (Persona 3)."""
     return pd.read_csv(
-        _resolve("persona3_analisis", "data", "processed", "agregado_serie_total.csv"),
-        parse_dates=["fecha"],
+        _resolve("persona3_analisis", "data", "processed", "agregado_serie_total.csv")
     )
 
 
 def load_agregado_por_segmento() -> pd.DataFrame:
-    """Composición por segmento y año (Persona 3)."""
+    """Composición por segmento y año fiscal (Persona 3)."""
     return pd.read_csv(
-        _resolve("persona3_analisis", "data", "processed", "agregado_por_segmento_anio.csv"),
-    )
-
-
-def load_agregado_por_fase_fiscal() -> pd.DataFrame:
-    """Estacionalidad por fase fiscal ACP (Persona 3)."""
-    return pd.read_csv(
-        _resolve("persona3_analisis", "data", "processed", "agregado_por_fase_fiscal.csv"),
+        _resolve("persona3_analisis", "data", "processed", "agregado_por_segmento_anio.csv")
     )
 
 
 def load_agregado_por_periodo() -> pd.DataFrame:
     """Sequía / baseline / recuperación (Persona 3)."""
     return pd.read_csv(
-        _resolve("persona3_analisis", "data", "processed", "agregado_por_periodo.csv"),
+        _resolve("persona3_analisis", "data", "processed", "agregado_por_periodo.csv")
     )
 
 
@@ -104,21 +92,6 @@ def load_tendencia_anual() -> pd.DataFrame:
     return pd.read_csv(_resolve("persona3_analisis", "output", "tendencia_anual.csv"))
 
 
-def load_descomposicion_serie() -> pd.DataFrame:
-    return pd.read_csv(
-        _resolve("persona3_analisis", "output", "descomposicion_serie.csv"),
-        parse_dates=["fecha"],
-    )
-
-
-def load_componente_estacional() -> pd.DataFrame:
-    return pd.read_csv(_resolve("persona3_analisis", "output", "componente_estacional.csv"))
-
-
-def load_estacionalidad_fase_fiscal() -> pd.DataFrame:
-    return pd.read_csv(_resolve("persona3_analisis", "output", "estacionalidad_fase_fiscal.csv"))
-
-
 def load_stats_por_segmento() -> pd.DataFrame:
     return pd.read_csv(_resolve("persona3_analisis", "output", "stats_por_segmento.csv"))
 
@@ -129,19 +102,13 @@ def load_stats_totales() -> pd.DataFrame:
 
 # ── Persona 4 — Modelo ──────────────────────────────────────────────────────
 def load_predicciones_2026() -> pd.DataFrame:
-    """Pronóstico mensual 2026 (Persona 4)."""
-    return pd.read_csv(
-        _resolve("persona4_modelo", "output", "predicciones_2026.csv"),
-        parse_dates=["fecha"],
-    )
+    """Pronóstico anual de próximos años fiscales (Persona 4)."""
+    return pd.read_csv(_resolve("persona4_modelo", "output", "predicciones_2026.csv"))
 
 
 def load_predicciones_test() -> pd.DataFrame:
-    """Reales vs predichos en hold-out (Persona 4)."""
-    return pd.read_csv(
-        _resolve("persona4_modelo", "output", "predicciones_test.csv"),
-        parse_dates=["fecha"],
-    )
+    """Reales vs predichos en validación Leave-One-Out (Persona 4)."""
+    return pd.read_csv(_resolve("persona4_modelo", "output", "predicciones_test.csv"))
 
 
 def load_metricas_modelos() -> pd.DataFrame:
@@ -150,8 +117,11 @@ def load_metricas_modelos() -> pd.DataFrame:
 
 
 def load_importancia_features() -> pd.DataFrame:
-    """Importancia de features (Persona 4)."""
-    return pd.read_csv(_resolve("persona4_modelo", "output", "importancia_features.csv"))
+    """Coeficientes del modelo ganador (Persona 4). Puede no existir si el ganador es un baseline."""
+    ruta = _resolve("persona4_modelo", "output", "importancia_features.csv")
+    if not ruta.exists():
+        return pd.DataFrame(columns=["feature", "coef_abs"])
+    return pd.read_csv(ruta)
 
 
 def load_resumen_entrenamiento() -> dict[str, Any]:

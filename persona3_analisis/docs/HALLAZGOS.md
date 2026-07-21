@@ -1,147 +1,142 @@
 # Hallazgos del Análisis Exploratorio — Canal de Panamá
 
 **Responsable:** Persona 3
-**Fuente primaria:** `persona1_ingesta/data/processed/canal_limpio.csv` (modo `muestra`)
-**Fuente secundaria:** `persona3_analisis/data/raw/fuente2_combustibles.csv` (proxy Brent; pendiente de Persona 2)
-**Período:** octubre 2019 – diciembre 2025 (75 meses, 10 segmentos, 750 observaciones)
+**Fuente primaria:** `persona1_ingesta/data/processed/canal_limpio.csv` (datos oficiales ACP, modo `oficial`)
+**Fuente secundaria:** `persona3_analisis/data/raw/fuente2_combustibles.csv` (precio del crudo, FMI PCPS, promedio por año fiscal)
+**Período:** años fiscales **FY2020–FY2025** (6 años, 10 segmentos, 60 observaciones)
 **Generado por:** `python persona3_analisis/src/run_pipeline.py`
+
+> **Granularidad:** la ACP publica el desglose por segmento a nivel **anual** (año
+> fiscal, oct–sep). Todo el análisis es anual; no hay estacionalidad mensual.
 
 ---
 
 ## 1. Resumen ejecutivo
 
-- **Volumen total del período:** 72,543 tránsitos · 3,245,609,026 toneladas CP/SUAB · USD 20,294,617,711 en peajes.
-- **Tendencia anual de tránsitos (todos los segmentos):**
+- **Volumen total del período (FY2020–FY2025):** 79,674 tránsitos.
+- **Tránsitos por año fiscal (todos los segmentos, cifras oficiales ACP):**
 
-  | Año | Tránsitos anuales | Variación interanual |
-  |---|---|---|
-  | 2019* | 2,808 | — (solo oct–dic) |
-  | 2020 | 11,792 | — (12 meses completos) |
-  | 2021 | 11,692 | −0.8% |
-  | 2022 | 11,784 | +0.8% |
-  | 2023 | 9,747 | **−17.3%** (sequía) |
-  | 2024 | 10,759 | +10.4% (recuperación parcial) |
-  | 2025 | 13,961 | **+29.8%** (récord) |
+  | Año fiscal | Tránsitos | Variación interanual |
+  |---|---:|---:|
+  | FY2020 | 13,369 | — |
+  | FY2021 | 13,342 | −0.2% |
+  | FY2022 | 14,239 | +6.7% |
+  | FY2023 | 14,080 | −1.1% |
+  | FY2024 | 11,240 | **−20.2%** (sequía) |
+  | FY2025 | 13,404 | **+19.3%** (recuperación) |
 
-  \* 2019 contiene solo 3 meses (oct–dic), por lo que no es comparable con años completos. La CAGR reportada por el script (30.6%) es engañosa por este motivo; la métrica relevante es **2025 vs 2020 = +18.4%** o **2025 vs 2022 = +18.5%**.
+- La serie **no muestra una tendencia lineal clara**: sube hasta FY2022, cae con
+  la sequía (FY2024) y se recupera en FY2025. CAGR FY2020–FY2025 ≈ 0% y la
+  correlación tránsitos–año no es significativa (p ≈ 0.55).
 
 ---
 
 ## 2. Ranking de segmentos por tránsitos
 
-| # | Segmento | Tránsitos (75m) | Promedio mensual | Participación |
+| # | Segmento | Tránsitos (6 años) | Promedio anual | Participación |
 |---|---|---:|---:|---:|
-| 1 | Portacontenedores | 17,740 | 237 | 24.4% |
-| 2 | Quimiqueros | 13,678 | 182 | 18.9% |
-| 3 | Graneles_secos | 13,592 | 181 | 18.7% |
-| 4 | Tanqueros | 8,933 | 119 | 12.3% |
-| 5 | Carga_refrigerada | 5,160 | 69 | 7.1% |
-| 6 | Vehiculos_RoRo | 4,012 | 54 | 5.5% |
-| 7 | Gas_licuado_GLP | 3,258 | 43 | 4.5% |
-| 8 | Otros | 2,925 | 39 | 4.0% |
-| 9 | Gas_natural_GNL | 2,188 | 29 | 3.0% |
-| 10 | Pasajeros | 1,057 | 14 | 1.5% |
+| 1 | Portacontenedores | 16,428 | 2,738 | 20.6% |
+| 2 | Tanqueros_quimiqueros | 15,901 | 2,650 | 20.0% |
+| 3 | Graneles_secos | 14,869 | 2,478 | 18.7% |
+| 4 | Gas_licuado_GLP | 9,452 | 1,575 | 11.9% |
+| 5 | Otros | 9,159 | 1,527 | 11.5% |
+| 6 | Vehiculos_RoRo | 4,668 | 778 | 5.9% |
+| 7 | Carga_refrigerada | 3,273 | 546 | 4.1% |
+| 8 | Carga_general | 3,049 | 508 | 3.8% |
+| 9 | Gas_natural_GNL | 1,832 | 305 | 2.3% |
+| 10 | Pasajeros | 1,043 | 174 | 1.3% |
 
-**Lectura:** Los tres primeros segmentos (Portacontenedores, Quimiqueros, Graneles_secos) concentran **62.1%** de los tránsitos. Refuerza la dependencia del canal del comercio marítimo global contenerizado y de graneles.
+**Lectura:** los tres primeros segmentos (Portacontenedores, Tanqueros/quimiqueros,
+Graneles secos) concentran **~59%** de los tránsitos: dependencia del comercio
+contenerizado, de líquidos a granel y de graneles secos.
 
 ---
 
-## 3. Impacto de la sequía 2023–may-2024 y recuperación 2025+
+## 3. Impacto de la sequía (FY2024) y recuperación (FY2025)
 
-Comparativa de promedios mensuales por segmento (baseline = período normal, sequía = jun-2023 a may-2024, recuperación = 2025+):
+Comparativa por segmento: baseline = promedio FY2020–FY2023; sequía = FY2024;
+recuperación = FY2025.
 
-| Segmento | Baseline | Sequía | Var % | Recuperación | Var % |
+| Segmento | Baseline | Sequía (FY2024) | Var % | Recuperación (FY2025) | Var % |
 |---|---:|---:|---:|---:|---:|
-| Portacontenedores | 240 | 177 | **−26.1%** | 281 | +17.2% |
-| Graneles_secos | 183 | 134 | **−26.7%** | 219 | +19.6% |
-| Quimiqueros | 183 | 137 | **−25.4%** | 224 | **+22.2%** |
-| Tanqueros | 120 | 89 | **−25.9%** | 145 | +21.0% |
-| Carga_refrigerada | 70 | 51 | **−27.3%** | 80 | +14.0% |
-| Vehiculos_RoRo | 54 | 40 | **−25.4%** | 64 | +17.1% |
-| Gas_licuado_GLP | 44 | 32 | **−27.6%** | 52 | +18.3% |
-| Otros | 39 | 30 | −24.5% | 47 | +19.8% |
-| Gas_natural_GNL | 30 | 22 | **−26.0%** | 34 | +14.4% |
-| Pasajeros | 14 | 10 | **−28.5%** | 17 | +18.0% |
+| Graneles_secos | 2,840 | 1,278 | **−55.0%** | 2,230 | −21.5% |
+| Carga_general | 575 | 287 | **−50.1%** | 463 | −19.4% |
+| Gas_natural_GNL | 414 | 115 | **−72.2%** | 61 | −85.3% |
+| Carga_refrigerada | 580 | 436 | **−24.9%** | 516 | −11.1% |
+| Tanqueros_quimiqueros | 2,752 | 2,230 | **−19.0%** | 2,662 | −3.3% |
+| Portacontenedores | 2,691 | 2,773 | +3.1% | 2,893 | +7.5% |
+| Gas_licuado_GLP | 1,522 | 1,561 | +2.6% | 1,805 | +18.6% |
+| Vehiculos_RoRo | 754 | 783 | +3.9% | 871 | +15.6% |
+| Otros | 1,475 | 1,572 | +6.6% | 1,689 | +14.5% |
+| Pasajeros | 156 | 205 | +31.4% | 214 | +37.2% |
 
 **Lecturas clave:**
-- El golpe de la sequía fue **homogéneo entre segmentos** (−24% a −29%); ningún segmento escapó.
-- **Pasajeros** fue el más golpeado (−28.5%); es coherente con restricciones de calado que limitan cruceros.
-- En 2025 la recuperación es **generalizada** (+14% a +22%); **Quimiqueros** lidera el rebote (+22.2%), sugiriendo recuperación de demanda de productos químicos y petroquímicos.
+- La sequía golpeó sobre todo a **graneleros (−55%)** y **carga general (−50%)**:
+  buques sensibles a las restricciones de calado y a los peajes.
+- El **gas natural (GNL)** es el segmento en mayor caída estructural (FY2024 y
+  FY2025 muy por debajo del baseline), por cambios en los patrones de comercio
+  energético más que por la sequía.
+- **Portacontenedores, GLP y vehículos** resistieron o crecieron: prioridad de
+  slots de reserva para buques de alto valor.
 
 ---
 
-## 4. Estacionalidad (descomposición aditiva, período 12)
+## 4. Tendencia de largo plazo
 
-Componente estacional promedio por mes calendario (desviación sobre la serie mensual total):
-
-| Mes | Δ tránsitos | % sobre la media |
-|---|---:|---:|
-| Ene | +57 | — |
-| Feb | +83 | — |
-| Mar | +76 | — |
-| Abr | +84 | **+8.66%** (pico) |
-| May | +68 | — |
-| Jun | +3 | — |
-| Jul | −32 | — |
-| Ago | −90 | **−9.26%** (valle) |
-| Sep | −80 | — |
-| Oct | −84 | — |
-| Nov | −51 | — |
-| Dic | −14 | — |
-
-**Lectura:** Temporada alta de tránsitos en **febrero–mayo** (pre-temporada de huracanes del Atlántico y pico de cosechas en gráneles), valle en **agosto–octubre**. La amplitud estacional es de **~17.9 puntos porcentuales** sobre la media mensual.
+- **CAGR FY2020–FY2025 ≈ 0%** (la serie termina cerca de donde empezó tras la
+  caída y recuperación).
+- **Correlación Pearson(tránsitos, año) = −0.31 (p ≈ 0.55):** no significativa;
+  con 6 puntos y el shock de la sequía, no hay una tendencia lineal robusta.
+- La dinámica relevante es de **shock y recuperación** (sequía FY2024 → rebote
+  FY2025), no de crecimiento sostenido.
 
 ---
 
-## 5. Tendencia de largo plazo
+## 5. Relación con la segunda fuente (precio del crudo)
 
-- **Correlación Pearson(tránsitos anuales, año) = 0.637** (p=0.124).
-- **Crecimiento 2022 → 2025: +18.5%** (3 años).
-- El p-valor > 0.05 refleja que la serie anual es corta (7 puntos) y la sequía distorsiona; **excluyendo 2023–2024** se observa una tendencia creciente sostenida desde 2022, coherente con la recuperación post-pandemia.
-
----
-
-## 6. Correlación con la segunda fuente (Brent proxy)
+Correlaciones sobre el dataset unificado anual por segmento:
 
 | Variable | Correlación con `transitos` |
 |---|---:|
-| `precio_barril_usd` | −0.04 (débil) |
-| `precio_var_mensual_pct` | +0.01 (nula) |
-| `calado_promedio_pies` | −0.05 (nula) |
-| `peajes_usd` | **+0.99** (definida) |
+| `precio_barril_usd_prom` | débil |
+| `peajes_usd` | **~1.0** (por construcción) |
+| `toneladas_cp_suez` | **~1.0** (por construcción) |
 
-> ⚠️ La correlación entre tránsitos y peajes es ~1 por construcción (peajes = función creciente de tránsitos). El Brent es **dato de muestra pendiente de Persona 2**; cuando se conecte la fuente real, validar la correlación real con el combustible.
+> La correlación entre tránsitos y peajes/toneladas es ~1 porque ambos se
+> prorratean a partir de los tránsitos. El precio del crudo tiene relación débil
+> a esta granularidad anual.
 
 ---
 
-## 7. Recomendaciones para Persona 4 (modelo predictivo)
+## 6. Recomendaciones para Persona 4 (modelo predictivo)
 
-1. **Variables exógenas útiles detectadas:** `fase_fiscal`, `periodo_sequia` (binario), `periodo_recuperacion` (binario), `precio_barril_usd` (cuando esté la fuente real).
-2. **Estructura sugerida:** modelo jerárquico o por segmento, dada la heterogeneidad de patrones (Pasajeros vs Portacontenedores).
-3. **Hold-out temporal:** entrenar hasta 2024-09, validar con AF2025 (oct-2024 → sep-2025) y 2025-Q4 (oct–dic 2025) como test final.
-4. **Métrica principal:** MAPE sobre tránsitos totales mensuales (cuidado con meses extremos de la sequía).
+1. **Serie corta (6 años):** usar modelos simples (tendencia lineal / media) y
+   validación **Leave-One-Out**; evitar ensembles de ML (sobreajuste inmediato).
+2. **Exógeno disponible:** `precio_barril_usd_prom` (promedio anual del crudo).
+3. **Sin estacionalidad modelable:** la fuente es anual; la señal es la variación
+   año a año (shock de la sequía y recuperación).
 
-## 8. Recomendaciones para Persona 5 (dashboard)
+## 7. Recomendaciones para Persona 5 (dashboard)
 
-Las siguientes figuras ya están listas en `persona3_analisis/figures/` (10 PNG):
+Figuras listas en `persona3_analisis/figures/` (7 PNG):
 
 | Archivo | Uso sugerido en dashboard |
 |---|---|
-| `01_serie_mensual.png` | Tarjeta principal con KPI + sparkline |
-| `02_descomposicion_estacional.png` | Sección "Análisis técnico" |
-| `04_composicion_por_segmento.png` | Treemap o stacked-bar interactivo |
-| `05_ranking_segmentos.png` | Ranking lateral |
-| `06_comparativa_periodos.png` | Filtro de período + comparativa |
-| `07_heatmap_correlacion.png` | Sección "Drivers macro" |
-| `08_estacionalidad_fase_fiscal.png` | Heatmap pequeño en panel |
-| `09_tendencia_anual.png` | Tarjeta de tendencia + CAGR |
-| `10_precio_vs_transitos.png` | Sección "Segunda fuente" |
+| `01_serie_anual.png` | Tarjeta principal con la serie anual |
+| `02_composicion_por_segmento.png` | Stacked-bar de composición |
+| `03_ranking_segmentos.png` | Ranking lateral |
+| `04_comparativa_periodos.png` | Comparativa baseline/sequía/recuperación |
+| `05_heatmap_correlacion.png` | Sección "Drivers macro" |
+| `06_tendencia_anual.png` | Tarjeta de tendencia + CAGR |
+| `07_precio_vs_transitos.png` | Sección "Segunda fuente" |
 
 ---
 
-## 9. Limitaciones y pendientes
+## 8. Limitaciones
 
-1. **Fuente 1:** el script de Persona 1 actualmente opera en **modo `muestra`**; cuando se confirme la URL oficial, re-ejecutar con `--modo url` y re-correr este pipeline (los esquemas son compatibles).
-2. **Fuente 2 (Brent proxy):** generada sintéticamente; **Persona 2 debe reemplazarla** con datos reales y re-ejecutar `preprocesamiento.py`. El código ya detecta automáticamente si existe la fuente real o no.
-3. **Sin outliers detectados** en tránsitos (validación de no-negatividad de Persona 1 ya aplicada). El período 2023–may-2024 está marcado con `periodo_sequia=1` para uso como feature categórica en el modelo.
-4. **CAGR reportada por el script es engañosa** por incluir un 2019 parcial; usar 2020–2025 o 2022–2025 para comparaciones válidas.
+1. **Granularidad anual:** la ACP no publica el desglose por segmento a nivel
+   mensual; por eso no hay análisis de estacionalidad intra-anual.
+2. **`calado_promedio_pies`** es un valor nominal de referencia por segmento, no
+   publicado por la ACP (ver `persona1_ingesta/docs/FUENTE_DATOS.md`).
+3. **Serie corta:** 6 años fiscales; las métricas de tendencia tienen alta
+   incertidumbre. Al publicarse nuevos informes anuales, re-ejecutar el pipeline.

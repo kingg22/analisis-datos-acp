@@ -12,9 +12,9 @@ que une ambas fuentes en datasets listos para análisis y modelado.
 
 | Archivo | Descripción | Lo consume |
 |---|---|---|
-| `data/raw/fuente2_raw.csv` | Precios mensuales del petróleo crudo + features derivados | Trazabilidad local |
-| `data/processed/dataset_unificado.csv` | Serie mensual: tránsitos totales + precio barril | Persona 4 (ML) |
-| `data/processed/dataset_unificado_completo.csv` | Canal por segmento × mes + precio barril | Persona 3 (EDA) |
+| `data/raw/fuente2_raw.csv` | Precio del petróleo crudo, promedio por año fiscal | Trazabilidad local |
+| `data/processed/dataset_unificado.csv` | Serie anual: tránsitos totales + precio barril | Persona 4 (modelo) |
+| `data/processed/dataset_unificado_completo.csv` | Canal por segmento × año fiscal + precio barril | Persona 3 (EDA) |
 | `persona3_analisis/data/raw/fuente2_combustibles.csv` | Copia para Persona 3 (formato esperado por `preprocesamiento.py`) | Persona 3 |
 
 ---
@@ -24,7 +24,8 @@ que une ambas fuentes en datasets listos para análisis y modelado.
 - **Organismo:** International Monetary Fund — Primary Commodity Price System
 - **Indicador:** `POILAPSP` (Crude Oil, average spot price, USD/barril)
 - **API pública:** Sin clave de acceso. Ver `docs/FUENTE_DATOS.md` para detalle.
-- **Cobertura:** Oct 2019 – Dic 2025 (mismo rango que Fuente 1 de Persona 1)
+- **Cobertura:** Oct 2019 – Sep 2025, promediado por año fiscal (FY2020–FY2025,
+  mismos años que la Fuente 1 de Persona 1)
 
 ---
 
@@ -68,7 +69,7 @@ uv sync
 # Descarga datos reales del FMI (requiere internet)
 python src/ingesta_fuente2.py --modo api
 
-# Genera datos sintéticos (sin internet, para desarrollo)
+# Genera datos sintéticos de respaldo (sin internet, para desarrollo)
 python src/ingesta_fuente2.py --modo muestra
 ```
 
@@ -79,13 +80,13 @@ python src/ingesta_fuente2.py --modo muestra
 python src/pipeline.py
 
 # Con modos explícitos
-python src/pipeline.py --modo-fuente1 muestra --modo-fuente2 api
+python src/pipeline.py --modo-fuente1 oficial --modo-fuente2 api
 ```
 
 El pipeline:
 1. Verifica si los datos de Persona 1 ya están en disco; si no, los genera.
-2. Descarga/genera los precios de la Fuente 2.
-3. Hace el join mensual por `fecha`.
+2. Descarga los precios de la Fuente 2 y los promedia por año fiscal.
+3. Hace el join por `anio_fiscal`.
 4. Exporta `dataset_unificado.csv` y `dataset_unificado_completo.csv`.
 5. Copia `fuente2_combustibles.csv` a `persona3_analisis/data/raw/` automáticamente.
 
@@ -97,17 +98,16 @@ El pipeline:
 
 | Columna | Tipo | Descripción |
 |---|---|---|
-| `fecha` | datetime | Primer día del mes |
-| `transitos_totales` | int | Total de tránsitos mensuales (Fuente 1) |
-| `precio_barril_usd` | float | Precio del petróleo crudo (USD/barril) |
-| `var_mensual_pct` | float | Variación % del precio respecto al mes anterior |
-| `precio_barril_usd_ma3` | float | Media móvil 3 meses del precio |
-| `anio` | int | Año |
-| `mes` | int | Mes (1-12) |
+| `anio_fiscal` | int | Año fiscal ACP (oct–sep) |
+| `transitos_totales` | int | Total de tránsitos del año fiscal (Fuente 1) |
+| `toneladas_totales` | int | Tonelaje PC/UMS total del año fiscal |
+| `peajes_totales_usd` | int | Peajes totales del año fiscal |
+| `precio_barril_usd_prom` | float | Precio promedio del crudo en el año fiscal (USD/barril) |
+| `var_anual_pct` | float | Variación % del precio respecto al año fiscal anterior |
 
 ### `dataset_unificado_completo.csv` (para Persona 3)
 
-Todas las columnas de `canal_limpio.csv` (Persona 1) + `precio_barril_usd` + `precio_barril_usd_ma3`.
+Todas las columnas de `canal_limpio.csv` (Persona 1) + `precio_barril_usd_prom`, unido por `anio_fiscal`.
 
 ---
 
@@ -121,11 +121,11 @@ si el equipo lo requiere en el futuro.
 ```
 Fuente 1 (ACP)          Fuente 2 (FMI PCPS)
 persona1_ingesta/   +   persona2_pipeline/
-canal_serie_mensual.csv  fuente2_raw.csv
+canal_serie_anual.csv    fuente2_raw.csv
 canal_limpio.csv              |
         |                     |
         +------[ JOIN ]-------+
-               fecha
+             anio_fiscal
                 |
         dataset_unificado.csv           → Persona 4
         dataset_unificado_completo.csv  → Persona 3

@@ -1,7 +1,8 @@
 """
 ingesta_fuente2.py
 ==================
-Ingesta de la segunda fuente de datos: precios mensuales del petróleo crudo.
+Ingesta de la segunda fuente de datos: precios del petróleo crudo, agregados a
+promedio por AÑO FISCAL de la ACP (oct–sep).
 
 Responsable: PERSONA 2 - Ingesta de Datos (Fuente 2) + Pipeline
 Proyecto: Grupo 8 - Análisis de Datos del Canal de Panamá
@@ -11,16 +12,14 @@ FUENTE PÚBLICA:
   International Monetary Fund (IMF) — Primary Commodity Price System (PCPS).
   API SDMX JSON, sin clave de acceso requerida.
   Indicador: POILAPSP (Crude Oil, average spot price, USD/barril).
-  URL: https://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData/
-       PCPS/M.W0.POILAPSP.USD?startPeriod=2019-10&endPeriod=2025-12
+
+Granularidad: la API entrega datos mensuales; aquí se promedian por año fiscal
+de la ACP para alinearlos con la Fuente 1 (tránsitos anuales del Canal).
 
 Relación precio del petróleo ↔ Canal de Panamá:
   - Precio alto → mayor costo de combustible → las navieras priorizan rutas
-    cortas (como el Canal) para reducir millas navegadas → presión alcista en
-    demanda de tránsitos.
-  - El pico de 2022 (guerra Ucrania) coincide con repunte de tránsitos.
-  - La sequía 2023-2024 añadió restricciones de calado sobre esa demanda.
-  Esta variable es un insumo clave para el modelo predictivo de Persona 4.
+    cortas (como el Canal) → presión sobre la demanda de tránsitos.
+  Esta variable es un insumo (exógeno) para el modelo predictivo de Persona 4.
 
 Modos de ejecución:
   --modo api     : Descarga datos reales desde la API del FMI (recomendado).
@@ -42,23 +41,20 @@ RUTA_BASE = Path(__file__).resolve().parents[1]
 RUTA_RAW = RUTA_BASE / "data" / "raw"
 RUTA_PROCESSED = RUTA_BASE / "data" / "processed"
 
-# Ruta donde Persona 3 espera la segunda fuente (preprocesamiento.py l.39)
+# Ruta donde Persona 3 espera la segunda fuente
 RUTA_PERSONA3_RAW = (
-    Path(__file__).resolve().parents[2]
-    / "persona3_analisis"
-    / "data"
-    / "raw"
+    Path(__file__).resolve().parents[2] / "persona3_analisis" / "data" / "raw"
 )
 
-# Rango temporal idéntico al de canal_serie_mensual.csv de Persona 1
-FECHA_INICIO = "2019-10-01"
-FECHA_FIN = "2025-12-01"
+# Años fiscales cubiertos por la Fuente 1 (tránsitos ACP).
+ANIOS_FISCALES = list(range(2020, 2026))  # FY2020 (oct-2019) ... FY2025 (sep-2025)
 
-# IMF PCPS — SDMX JSON endpoint (sin clave)
+# IMF PCPS — SDMX JSON endpoint (sin clave). Se piden los meses que cubren
+# todos los años fiscales del proyecto (oct-2019 a sep-2025).
 IMF_URL = (
     "https://dataservices.imf.org/REST/SDMX_JSON.svc/CompactData"
     "/PCPS/M.W0.POILAPSP.USD"
-    "?startPeriod=2019-10&endPeriod=2025-12"
+    "?startPeriod=2019-10&endPeriod=2025-09"
 )
 
 logging.basicConfig(
@@ -68,43 +64,35 @@ logging.basicConfig(
 log = logging.getLogger("ingesta_fuente2")
 
 
+def a_anio_fiscal(fecha: pd.Timestamp) -> int:
+    """Año fiscal ACP: oct–sep. Oct-2024..Sep-2025 -> FY2025."""
+    return fecha.year + 1 if fecha.month >= 10 else fecha.year
+
+
 # -------------------------------------------------------------------------
-# 1. Descarga desde la API SDMX del FMI
+# 1. Descarga desde la API SDMX del FMI (mensual)
 # -------------------------------------------------------------------------
 def descargar_desde_imf(timeout: int = 30) -> pd.DataFrame:
-    """
-    Llama a la API SDMX JSON del FMI y retorna los precios mensuales
-    del petróleo crudo promedio (POILAPSP) en USD/barril.
-    """
+    """Llama a la API del FMI y retorna precios mensuales del crudo (USD/barril)."""
     log.info("Consultando API FMI PCPS: %s", IMF_URL)
-    respuesta = requests.get(
-        IMF_URL,
-        timeout=timeout,
-        headers={"Accept": "application/json"},
-    )
+    respuesta = requests.get(IMF_URL, timeout=timeout, headers={"Accept": "application/json"})
     respuesta.raise_for_status()
     datos = respuesta.json()
 
-    # La estructura SDMX JSON es:
-    # CompactData → DataSet → Series → Obs (lista de {"@TIME_PERIOD": "YYYY-MM", "@OBS_VALUE": "XX.XX"})
     try:
         dataset = datos["CompactData"]["DataSet"]
         serie = dataset["Series"]
-        # Series puede ser una lista (varios indicadores) o un dict único
         if isinstance(serie, list):
             serie = serie[0]
         obs_raw = serie["Obs"]
-        # Obs puede ser dict único si solo hay una observación
         if isinstance(obs_raw, dict):
             obs_raw = [obs_raw]
     except (KeyError, TypeError) as exc:
-        raise ValueError(
-            f"Estructura JSON inesperada de la API FMI. Detalle: {exc}"
-        ) from exc
+        raise ValueError(f"Estructura JSON inesperada de la API FMI. Detalle: {exc}") from exc
 
     filas = []
     for obs in obs_raw:
-        periodo = obs.get("@TIME_PERIOD", "")  # "2019-10"
+        periodo = obs.get("@TIME_PERIOD", "")
         valor = obs.get("@OBS_VALUE", None)
         if not periodo or valor is None:
             continue
@@ -115,110 +103,84 @@ def descargar_desde_imf(timeout: int = 30) -> pd.DataFrame:
             log.warning("Observación omitida (formato inválido): %s", obs)
 
     if not filas:
-        raise ValueError(
-            "La API del FMI devolvió cero observaciones válidas. "
-            "Prueba --modo muestra o verifica la conectividad."
-        )
+        raise ValueError("La API del FMI devolvió cero observaciones válidas.")
 
     df = pd.DataFrame(filas).sort_values("fecha").reset_index(drop=True)
-    log.info("API FMI: %d observaciones descargadas (oct-2019 a dic-2025).", len(df))
+    log.info("API FMI: %d observaciones mensuales descargadas.", len(df))
     return df
 
 
 # -------------------------------------------------------------------------
-# 2. Modo muestra (datos sintéticos coherentes con la realidad)
+# 2. Modo muestra (datos sintéticos, sólo si la API no está disponible)
 # -------------------------------------------------------------------------
 def data_muestra() -> pd.DataFrame:
     """
-    Genera precios mensuales de petróleo crudo (proxy Brent) como muestra.
-
-    Dinámica macro real reflejada:
-      oct-2019 : ~60 USD/barril (punto de partida)
-      2020      : caída COVID — colapso a ~20 USD (abr-2020), recuperación
-      2021      : recuperación progresiva hasta ~80 USD
-      ene-jun 2022 : pico guerra Ucrania (~120 USD en jun)
-      jul-dic 2022 : corrección (-15 %)
-      2023-2024 : estabilización 75-85 USD
-      2025      : ligera tendencia a la baja, 70-78 USD
+    Genera precios mensuales de petróleo crudo (proxy) como respaldo.
+    Refleja la dinámica macro real: caída COVID 2020, pico Ucrania 2022,
+    estabilización 2023-2024, ligera baja 2025.
     """
-    log.info("Generando datos de MUESTRA de precios de petróleo (Brent proxy).")
+    log.info("Generando datos de MUESTRA de precios de petróleo (respaldo).")
     rng = np.random.default_rng(42)
-
-    fechas = pd.date_range(start=FECHA_INICIO, end=FECHA_FIN, freq="MS")
+    fechas = pd.date_range(start="2019-10-01", end="2025-09-01", freq="MS")
     filas = []
     precio = 60.0
-
     for fecha in fechas:
         y, m = fecha.year, fecha.month
         if y == 2020 and m <= 4:
-            mu, sigma = 0.870, 0.035   # caída COVID
+            mu, sigma = 0.870, 0.035
         elif y == 2020 and m > 4:
-            mu, sigma = 1.020, 0.020   # rebote post-mínimo
+            mu, sigma = 1.020, 0.020
         elif y == 2021:
-            mu, sigma = 1.025, 0.015   # recuperación
+            mu, sigma = 1.025, 0.015
         elif y == 2022 and m <= 6:
-            mu, sigma = 1.040, 0.025   # shock Ucrania
+            mu, sigma = 1.040, 0.025
         elif y == 2022 and m > 6:
-            mu, sigma = 0.975, 0.018   # corrección
+            mu, sigma = 0.975, 0.018
         elif y in (2023, 2024):
-            mu, sigma = 0.998, 0.012   # estabilización
-        else:                           # 2025
+            mu, sigma = 0.998, 0.012
+        else:
             mu, sigma = 0.993, 0.010
-
         precio = float(np.clip(precio * rng.normal(mu, sigma), 20.0, 130.0))
         filas.append({"fecha": fecha, "precio_barril_usd": round(precio, 2)})
-
     df = pd.DataFrame(filas)
-    log.info("Muestra generada: %d filas.", len(df))
+    log.info("Muestra generada: %d filas mensuales.", len(df))
     return df
 
 
 # -------------------------------------------------------------------------
-# 3. Limpieza y enriquecimiento
+# 3. Agregación a año fiscal
 # -------------------------------------------------------------------------
-def limpiar(df: pd.DataFrame) -> pd.DataFrame:
+def agregar_anual(df_mensual: pd.DataFrame) -> pd.DataFrame:
     """
-    Normaliza tipos, elimina duplicados, filtra al rango de Persona 1
-    y deriva columnas analíticas útiles para Personas 3 y 4.
+    Convierte la serie mensual en un promedio por año fiscal de la ACP.
+    Devuelve columnas: anio_fiscal, precio_barril_usd_prom, var_anual_pct.
     """
-    df = df.copy()
+    df = df_mensual.copy()
     df["fecha"] = pd.to_datetime(df["fecha"], errors="coerce")
-    df = df.dropna(subset=["fecha", "precio_barril_usd"])
-    df = df.drop_duplicates(subset=["fecha"])
-    df = df.sort_values("fecha").reset_index(drop=True)
+    df = df.dropna(subset=["fecha", "precio_barril_usd"]).drop_duplicates(subset=["fecha"])
+    df["anio_fiscal"] = df["fecha"].apply(a_anio_fiscal)
 
-    # Alinear con el rango temporal de Persona 1
-    mask = (df["fecha"] >= FECHA_INICIO) & (df["fecha"] <= FECHA_FIN)
-    df = df.loc[mask].reset_index(drop=True)
+    # Sólo años fiscales completos cubiertos por la Fuente 1.
+    df = df[df["anio_fiscal"].isin(ANIOS_FISCALES)]
 
-    df["anio"] = df["fecha"].dt.year
-    df["mes"] = df["fecha"].dt.month
-
-    # Variación mensual porcentual (útil como feature para ML en Persona 4)
-    df["var_mensual_pct"] = df["precio_barril_usd"].pct_change().round(4)
-
-    # Media móvil de 3 meses (suaviza ruido para análisis de tendencias)
-    df["precio_barril_usd_ma3"] = (
-        df["precio_barril_usd"].rolling(3, min_periods=1).mean().round(2)
+    anual = (
+        df.groupby("anio_fiscal", as_index=False)["precio_barril_usd"]
+        .mean()
+        .rename(columns={"precio_barril_usd": "precio_barril_usd_prom"})
+        .sort_values("anio_fiscal")
+        .reset_index(drop=True)
     )
-
-    # Columna de origen
-    return df[[
-        "fecha", "anio", "mes",
-        "precio_barril_usd", "var_mensual_pct", "precio_barril_usd_ma3",
-    ]]
+    anual["precio_barril_usd_prom"] = anual["precio_barril_usd_prom"].round(2)
+    anual["var_anual_pct"] = (anual["precio_barril_usd_prom"].pct_change() * 100).round(2)
+    log.info("Precios agregados a %d años fiscales.", len(anual))
+    return anual
 
 
 # -------------------------------------------------------------------------
 # 4. Persistencia
 # -------------------------------------------------------------------------
 def guardar(df: pd.DataFrame) -> None:
-    """
-    Persiste los datos en dos ubicaciones:
-      - persona2_pipeline/data/raw/fuente2_raw.csv  (copia completa local)
-      - persona3_analisis/data/raw/fuente2_combustibles.csv
-        (formato esperado por preprocesamiento.py de Persona 3)
-    """
+    """Persiste la fuente anual en persona2 (raw) y en persona3 (raw)."""
     RUTA_RAW.mkdir(parents=True, exist_ok=True)
     RUTA_PERSONA3_RAW.mkdir(parents=True, exist_ok=True)
 
@@ -226,10 +188,8 @@ def guardar(df: pd.DataFrame) -> None:
     df.to_csv(ruta_raw, index=False, encoding="utf-8")
     log.info("Guardado raw local: %s (%d filas)", ruta_raw, len(df))
 
-    # Persona 3 solo necesita: fecha, anio, mes, precio_barril_usd
-    df_p3 = df[["fecha", "anio", "mes", "precio_barril_usd"]].copy()
     ruta_p3 = RUTA_PERSONA3_RAW / "fuente2_combustibles.csv"
-    df_p3.to_csv(ruta_p3, index=False, encoding="utf-8")
+    df[["anio_fiscal", "precio_barril_usd_prom"]].to_csv(ruta_p3, index=False, encoding="utf-8")
     log.info("Guardado para Persona 3: %s", ruta_p3)
 
 
@@ -237,35 +197,32 @@ def guardar(df: pd.DataFrame) -> None:
 # 5. Entry point
 # -------------------------------------------------------------------------
 def main(modo: str = "api") -> pd.DataFrame:
-    log.info("=== PERSONA 2 — Ingesta Fuente 2 | modo: %s ===", modo)
+    log.info("=== PERSONA 2 — Ingesta Fuente 2 (anual) | modo: %s ===", modo)
 
     if modo == "api":
         try:
-            df_raw = descargar_desde_imf()
+            df_mensual = descargar_desde_imf()
         except Exception as exc:
             log.warning("API FMI no disponible (%s). Cambiando a modo muestra.", exc)
-            df_raw = data_muestra()
+            df_mensual = data_muestra()
     else:
-        df_raw = data_muestra()
+        df_mensual = data_muestra()
 
-    df = limpiar(df_raw)
+    df = agregar_anual(df_mensual)
     guardar(df)
-    log.info("=== Ingesta Fuente 2 completada: %d registros ===", len(df))
+    log.info("=== Ingesta Fuente 2 completada: %d años fiscales ===", len(df))
     return df
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Ingesta Fuente 2 — Precios de Petróleo Crudo (FMI PCPS)"
+        description="Ingesta Fuente 2 — Precios de Petróleo Crudo (FMI PCPS), anual"
     )
     parser.add_argument(
         "--modo",
         choices=["api", "muestra"],
         default="api",
-        help=(
-            "'api' descarga datos reales del FMI (sin clave, requiere internet). "
-            "'muestra' genera datos sintéticos coherentes con la realidad."
-        ),
+        help="'api' descarga datos reales del FMI; 'muestra' genera un respaldo sintético.",
     )
     args = parser.parse_args()
     main(modo=args.modo)
