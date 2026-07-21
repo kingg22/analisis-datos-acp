@@ -22,8 +22,9 @@ Relación precio del petróleo ↔ Canal de Panamá:
   Esta variable es un insumo (exógeno) para el modelo predictivo de Persona 4.
 
 Modos de ejecución:
-  --modo api     : Descarga datos reales desde la API del FMI (recomendado).
-  --modo muestra : Genera datos sintéticos si la API no está disponible.
+  --modo api     : Datos reales. Intenta la API del FMI y, si falla, FRED
+                   (Brent, Federal Reserve de St. Louis). Recomendado.
+  --modo muestra : Genera datos sintéticos si no hay conexión.
 """
 
 import argparse
@@ -49,6 +50,10 @@ RUTA_PERSONA3_RAW = (
 # Años fiscales cubiertos por la Fuente 1 (tránsitos ACP).
 ANIOS_FISCALES = list(range(2020, 2026))  # FY2020 (oct-2019) ... FY2025 (sep-2025)
 
+# Rango mensual que cubre esos años fiscales (oct-2019 a sep-2025).
+FECHA_INICIO = "2019-10-01"
+FECHA_FIN = "2025-09-01"
+
 # IMF PCPS — SDMX JSON endpoint (sin clave). Se piden los meses que cubren
 # todos los años fiscales del proyecto (oct-2019 a sep-2025).
 IMF_URL = (
@@ -56,6 +61,10 @@ IMF_URL = (
     "/PCPS/M.W0.POILAPSP.USD"
     "?startPeriod=2019-10&endPeriod=2025-09"
 )
+
+# FRED (Federal Reserve St. Louis) — Brent Crude mensual (fallback real)
+# POILBREUSDM: Europe Brent Spot Price FOB (USD/barril), sin clave de API
+FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=POILBREUSDM"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -111,7 +120,44 @@ def descargar_desde_imf(timeout: int = 30) -> pd.DataFrame:
 
 
 # -------------------------------------------------------------------------
-# 2. Modo muestra (datos sintéticos, sólo si la API no está disponible)
+# 1b. Descarga desde FRED (fallback real cuando IMF no está disponible)
+# -------------------------------------------------------------------------
+def descargar_desde_fred(timeout: int = 30) -> pd.DataFrame:
+    """
+    Descarga precios mensuales del petróleo Brent desde FRED
+    (Federal Reserve Bank of St. Louis). No requiere clave de API.
+    Serie: POILBREUSDM — Europe Brent Spot Price FOB, USD/barril.
+    """
+    log.info("Consultando FRED (fallback real): %s", FRED_URL)
+    respuesta = requests.get(
+        FRED_URL,
+        timeout=timeout,
+        headers={"Accept": "text/csv"},
+    )
+    respuesta.raise_for_status()
+
+    from io import StringIO
+    df_raw = pd.read_csv(StringIO(respuesta.text), parse_dates=["observation_date"])
+    df_raw = df_raw.rename(
+        columns={"observation_date": "fecha", "POILBREUSDM": "precio_barril_usd"}
+    )
+    df_raw["precio_barril_usd"] = pd.to_numeric(
+        df_raw["precio_barril_usd"], errors="coerce"
+    )
+    df_raw = df_raw.dropna(subset=["precio_barril_usd"])
+    df_raw = df_raw[
+        (df_raw["fecha"] >= FECHA_INICIO) & (df_raw["fecha"] <= FECHA_FIN)
+    ].reset_index(drop=True)
+
+    if df_raw.empty:
+        raise ValueError("FRED devolvió cero observaciones en el rango requerido.")
+
+    log.info("FRED: %d observaciones descargadas.", len(df_raw))
+    return df_raw[["fecha", "precio_barril_usd"]]
+
+
+# -------------------------------------------------------------------------
+# 2. Modo muestra (datos sintéticos, respaldo)
 # -------------------------------------------------------------------------
 def data_muestra() -> pd.DataFrame:
     """
@@ -200,11 +246,17 @@ def main(modo: str = "api") -> pd.DataFrame:
     log.info("=== PERSONA 2 — Ingesta Fuente 2 (anual) | modo: %s ===", modo)
 
     if modo == "api":
+        df_mensual = None
         try:
             df_mensual = descargar_desde_imf()
         except Exception as exc:
-            log.warning("API FMI no disponible (%s). Cambiando a modo muestra.", exc)
-            df_mensual = data_muestra()
+            log.warning("API FMI no disponible (%s). Intentando FRED (fallback real).", exc)
+        if df_mensual is None:
+            try:
+                df_mensual = descargar_desde_fred()
+            except Exception as exc2:
+                log.warning("FRED tampoco disponible (%s). Cambiando a modo muestra.", exc2)
+                df_mensual = data_muestra()
     else:
         df_mensual = data_muestra()
 
