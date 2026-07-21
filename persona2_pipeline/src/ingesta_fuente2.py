@@ -61,6 +61,10 @@ IMF_URL = (
     "?startPeriod=2019-10&endPeriod=2025-12"
 )
 
+# FRED (Federal Reserve St. Louis) — Brent Crude mensual (fallback real)
+# POILBREUSDM: Europe Brent Spot Price FOB (USD/barril), sin clave de API
+FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=POILBREUSDM"
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -123,6 +127,43 @@ def descargar_desde_imf(timeout: int = 30) -> pd.DataFrame:
     df = pd.DataFrame(filas).sort_values("fecha").reset_index(drop=True)
     log.info("API FMI: %d observaciones descargadas (oct-2019 a dic-2025).", len(df))
     return df
+
+
+# -------------------------------------------------------------------------
+# 1b. Descarga desde FRED (fallback real cuando IMF no está disponible)
+# -------------------------------------------------------------------------
+def descargar_desde_fred(timeout: int = 30) -> pd.DataFrame:
+    """
+    Descarga precios mensuales del petróleo Brent desde FRED
+    (Federal Reserve Bank of St. Louis). No requiere clave de API.
+    Serie: POILBREUSDM — Europe Brent Spot Price FOB, USD/barril.
+    """
+    log.info("Consultando FRED (fallback real): %s", FRED_URL)
+    respuesta = requests.get(
+        FRED_URL,
+        timeout=timeout,
+        headers={"Accept": "text/csv"},
+    )
+    respuesta.raise_for_status()
+
+    from io import StringIO
+    df_raw = pd.read_csv(StringIO(respuesta.text), parse_dates=["observation_date"])
+    df_raw = df_raw.rename(
+        columns={"observation_date": "fecha", "POILBREUSDM": "precio_barril_usd"}
+    )
+    df_raw["precio_barril_usd"] = pd.to_numeric(
+        df_raw["precio_barril_usd"], errors="coerce"
+    )
+    df_raw = df_raw.dropna(subset=["precio_barril_usd"])
+    df_raw = df_raw[
+        (df_raw["fecha"] >= FECHA_INICIO) & (df_raw["fecha"] <= FECHA_FIN)
+    ].reset_index(drop=True)
+
+    if df_raw.empty:
+        raise ValueError("FRED devolvió cero observaciones en el rango requerido.")
+
+    log.info("FRED: %d observaciones descargadas.", len(df_raw))
+    return df_raw[["fecha", "precio_barril_usd"]]
 
 
 # -------------------------------------------------------------------------
@@ -240,11 +281,17 @@ def main(modo: str = "api") -> pd.DataFrame:
     log.info("=== PERSONA 2 — Ingesta Fuente 2 | modo: %s ===", modo)
 
     if modo == "api":
+        df_raw = None
         try:
             df_raw = descargar_desde_imf()
         except Exception as exc:
-            log.warning("API FMI no disponible (%s). Cambiando a modo muestra.", exc)
-            df_raw = data_muestra()
+            log.warning("API FMI no disponible (%s). Intentando FRED (fallback real).", exc)
+        if df_raw is None:
+            try:
+                df_raw = descargar_desde_fred()
+            except Exception as exc2:
+                log.warning("FRED tampoco disponible (%s). Cambiando a modo muestra.", exc2)
+                df_raw = data_muestra()
     else:
         df_raw = data_muestra()
 
