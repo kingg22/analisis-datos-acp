@@ -1,0 +1,61 @@
+anio_fiscal,etiqueta,periodo,es_sequia,precio_barril_usd_prom,segmento_id,segmento,nombre_display,categoria,transitos,toneladas_cp_suez,peajes_usd
+2020,FY2020,baseline,0,47.64,1,Carga_general,Carga general,Graneles,612,21753490,121905603
+2020,FY2020,baseline,0,47.64,2,Carga_refrigerada,Carga refrigerada,Graneles,607,21575765,120909642
+2020,FY2020,baseline,0,47.64,3,Gas_licuado_GLP,Gas licuado (GLP),Gases,1305,46386117,259945770
+2020,FY2020,baseline,0,47.64,4,Gas_natural_GNL,Gas natural (GNL),Gases,419,14893320,83461515
+2020,FY2020,baseline,0,47.64,5,Graneles_secos,Graneles secos,Graneles,2759,98068427,549571172
+2020,FY2020,baseline,0,47.64,6,Otros,Otros,Otros,1438,51113591,286438327
+2020,FY2020,baseline,0,47.64,7,Pasajeros,Pasajeros,Otros,227,8068696,45216621
+2020,FY2020,baseline,0,47.64,8,Portacontenedores,Portacontenedores,Contenedores,2551,90675084,508139203
+2020,FY2020,baseline,0,47.64,9,Tanqueros_quimiqueros,Tanqueros / Quimiqueros,Líquidos,2779,98779325,553555015
+2020,FY2020,baseline,0,47.64,10,Vehiculos_RoRo,Vehículos RoRo,Otros,672,23886185,133857132
+2021,FY2021,baseline,0,62.21,1,Carga_general,Carga general,Graneles,508,19673482,113014960
+2021,FY2021,baseline,0,62.21,2,Carga_refrigerada,Carga refrigerada,Graneles,564,21842213,125473302
+2021,FY2021,baseline,0,62.21,3,Gas_licuado_GLP,Gas licuado (GLP),Gases,1523,58981719,338822410
+2021,FY2021,baseline,0,62.21,4,Gas_natural_GNL,Gas natural (GNL),Gases,537,20796575,119466602
+2021,FY2021,baseline,0,62.21,5,Graneles_secos,Graneles secos,Graneles,3043,117847257,676977410
+2021,FY2021,baseline,0,62.21,6,Otros,Otros,Otros,1170,45310973,260290361
+2021,FY2021,baseline,0,62.21,7,Pasajeros,Pasajeros,Otros,17,658365,3781997
+2021,FY2021,baseline,0,62.21,8,Portacontenedores,Portacontenedores,Contenedores,2602,100768505,578867966
+2021,FY2021,baseline,0,62.21,9,Tanqueros_quimiqueros,Tanqueros / Quimiqueros,Líquidos,2596,100536141,577533144
+2021,FY2021,baseline,0,62.21,10,Vehiculos_RoRo,Vehículos RoRo,Otros,782,30284770,173971848
+2022,FY2022,baseline,0,96.77,1,Carga_general,Carga general,Graneles,653,23792148,138859379
+2022,FY2022,baseline,0,96.77,2,Carga_refrigerada,Carga refrigerada,Graneles,604,22006826,128439610
+2022,FY2022,baseline,0,96.77,3,Gas_licuado_GLP,Gas licuado (GLP),Gases,1501,54689150,319185189
+2022,FY2022,baseline,0,96.77,4,Gas_natural_GNL,Gas natural (GNL),Gases,374,13626744,79530487
+2022,FY2022,baseline,0,96.77,5,Graneles_secos,Graneles secos,Graneles,2910,106026266,618806728
+2022,FY2022,baseline,0,96.77,6,Otros,Otros,Otros,1560,56838823,331731442
+2022,FY2022,baseline,0,96.77,7,Pasajeros,Pasajeros,Otros,129,4700133,27431638
+2022,FY2022,baseline,0,96.77,8,Portacontenedores,Portacontenedores,Contenedores,2822,102819973,600093672
+2022,FY2022,baseline,0,96.77,9,Tanqueros_quimiqueros,Tanqueros / Quimiqueros,Líquidos,2939,107082885,624973530
+2022,FY2022,baseline,0,96.77,10,Vehiculos_RoRo,Vehículos RoRo,Otros,747,27217052,158848325
+2023,FY2023,sequia,1,83.78,1,Carga_general,Carga general,Graneles,526,19093651,125085639
+2023,FY2023,sequia,1,83.78,2,Carga_refrigerada,Carga refrigerada,Graneles,546,19819645,129841747
+2023,FY2023,sequia,1,83.78,3,Gas_licuado_GLP,Gas licuado (GLP),Gases,1757,63778601,417824084
+2023,FY2023,sequia,1,83.78,4,Gas_natural_GNL,Gas natural (GNL),Gases,326,11833707,77524560
+2023,FY2023,sequia,1,83.78,5,Graneles_secos,Graneles secos,Graneles,2649,96157947,629946499
+2023,FY2023,sequia,1,83.78,6,Otros,Otros,Otros,1730,62798509,411403338
+2023,FY2023,sequia,1,83.78,7,Pasajeros,Pasajeros,Otros,251,9111229,59689155
+2023,FY2023,sequia,1,83.78,8,Portacontenedores,Portacontenedores,Contenedores,2787,101167308,662763643
+2023,FY2023,sequia,1,83.78,9,Tanqueros_quimiqueros,Tanqueros / Quimiqueros,Líquidos,2695,97827734,640885547
+2023,FY2023,sequia,1,83.78,10,Vehiculos_RoRo,Vehículos RoRo,Otros,813,29511669,193335788
+2024,FY2024,sequia,1,82.13,1,Carga_general,Carga general,Graneles,287,10803354,81174529
+2024,FY2024,sequia,1,82.13,2,Carga_refrigerada,Carga refrigerada,Graneles,436,16412064,123317402
+2024,FY2024,sequia,1,82.13,3,Gas_licuado_GLP,Gas licuado (GLP),Gases,1561,58759706,441510240
+2024,FY2024,sequia,1,82.13,4,Gas_natural_GNL,Gas natural (GNL),Gases,115,4328870,32526379
+2024,FY2024,sequia,1,82.13,5,Graneles_secos,Graneles secos,Graneles,1278,48106922,361467064
+2024,FY2024,sequia,1,82.13,6,Otros,Otros,Otros,1572,59173772,444621459
+2024,FY2024,sequia,1,82.13,7,Pasajeros,Pasajeros,Otros,205,7716682,57981806
+2024,FY2024,sequia,1,82.13,8,Portacontenedores,Portacontenedores,Contenedores,2773,104382233,784309991
+2024,FY2024,sequia,1,82.13,9,Tanqueros_quimiqueros,Tanqueros / Quimiqueros,Líquidos,2230,83942438,630728915
+2024,FY2024,sequia,1,82.13,10,Vehiculos_RoRo,Vehículos RoRo,Otros,783,29473959,221462215
+2025,FY2025,recuperacion,0,71.03,1,Carga_general,Carga general,Graneles,463,16897911,138440592
+2025,FY2025,recuperacion,0,71.03,2,Carga_refrigerada,Carga refrigerada,Graneles,516,18832229,154288004
+2025,FY2025,recuperacion,0,71.03,3,Gas_licuado_GLP,Gas licuado (GLP),Gases,1805,65876305,539709005
+2025,FY2025,recuperacion,0,71.03,4,Gas_natural_GNL,Gas natural (GNL),Gases,61,2226291,18239473
+2025,FY2025,recuperacion,0,71.03,5,Graneles_secos,Graneles secos,Graneles,2230,81387347,666787302
+2025,FY2025,recuperacion,0,71.03,6,Otros,Otros,Otros,1689,61642704,505024105
+2025,FY2025,recuperacion,0,71.03,7,Pasajeros,Pasajeros,Otros,214,7810266,63987660
+2025,FY2025,recuperacion,0,71.03,8,Portacontenedores,Portacontenedores,Contenedores,2893,105584572,865029447
+2025,FY2025,recuperacion,0,71.03,9,Tanqueros_quimiqueros,Tanqueros / Quimiqueros,Líquidos,2662,97153864,795958654
+2025,FY2025,recuperacion,0,71.03,10,Vehiculos_RoRo,Vehículos RoRo,Otros,871,31788511,260435758
