@@ -33,10 +33,10 @@ def main() -> None:
     log.info("#  PERSONA 4 - PIPELINE DE MODELO PREDICTIVO    #")
     log.info("################################################")
 
-    log.info(">>> [1/3] Entrenamiento y evaluación (Leave-One-Out)")
+    log.info(">>> [1/3] Entrenamiento y evaluación (Leave-One-Year-Out)")
     resumen = entrenamiento.ejecutar()
 
-    log.info(">>> [2/3] Generación de predicciones (próximos años fiscales)")
+    log.info(">>> [2/3] Generación del pronóstico FY2026")
     prediccion.ejecutar()
 
     log.info(">>> [3/3] Visualizaciones")
@@ -44,10 +44,15 @@ def main() -> None:
 
     g = resumen["modelo_ganador"]
     m = resumen["metricas"][g]
+    base = resumen["metricas"]["Media_Historica"]
     log.info("################################################")
     log.info(f"#  PIPELINE COMPLETADO en {time.time() - t0:.1f}s")
+    log.info(f"#  Observaciones: {resumen['n_observaciones']} "
+             f"({resumen['n_segmentos']} segmentos x {resumen['n_anios']} años)")
     log.info(f"#  Modelo ganador: {g}")
-    log.info(f"#  [LOO] MAPE={m['MAPE']:.2f}%  MAE={m['MAE']:.1f}  R2={m['R2']:.3f}")
+    log.info(f"#  [LOYO] MAE={m['MAE']:.1f}  R2={m['R2']:+.3f}")
+    log.info(f"#  Baseline:  MAE={base['MAE']:.1f}  R2={base['R2']:+.3f}")
+    log.info(f"#  Mejora sobre el baseline: {resumen['mejora_vs_baseline_pct']}%")
     log.info(f"#  {len(figs)} figuras en persona4_modelo/figures/")
     log.info("################################################")
 

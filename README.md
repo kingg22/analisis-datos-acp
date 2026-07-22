@@ -109,8 +109,9 @@ python persona4_modelo/src/run_pipeline.py
 - **79,674 tránsitos** analizados (años fiscales FY2020–FY2025)
 - **Segmento líder:** Portacontenedores (20.6%)
 - **Impacto sequía (FY2024):** los graneleros cayeron ~55% frente al baseline
-- **Modelo:** media histórica, MAPE ~6.5% (Leave-One-Out)
-- **Pronóstico FY2026:** ≈ 13,279 tránsitos
+- **Modelo:** Random Forest sobre panel segmento × año fiscal (60 obs.), R² = +0.921
+  en Leave-One-Year-Out — **79% menos error que un baseline sin aprendizaje**
+- **Pronóstico FY2026:** ≈ 13,361 tránsitos
 
 ---
 

@@ -54,6 +54,7 @@ with st.sidebar:
     st.page_link("app.py", label="🏠 Inicio", icon="🏠")
     st.page_link("pages/01_tendencias.py", label="📈 Tendencias", icon="📈")
     st.page_link("pages/02_modelo_predictivo.py", label="🤖 Modelo Predictivo", icon="🤖")
+    st.page_link("pages/04_mapas.py", label="🗺️ Mapas", icon="🗺️")
     st.page_link("pages/03_resumen_llm.py", label="🧠 Resumen LLM", icon="🧠")
     st.divider()
     st.caption("Segundo Parcial — Semanas 9-11")

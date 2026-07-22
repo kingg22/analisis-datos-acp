@@ -2,20 +2,31 @@
 entrenamiento.py
 ================
 
-Persona 4 - Entrenamiento y evaluación del modelo predictivo (ANUAL).
+Persona 4 - Entrenamiento y evaluación del modelo predictivo.
 
-La serie de tránsitos del Canal es anual (un punto por año fiscal), por lo que la
-muestra es pequeña. Se comparan modelos simples e interpretables y se evalúan con
-**Leave-One-Out** (LOO), la validación adecuada para pocos datos: se deja fuera un
-año, se entrena con el resto y se predice el año excluido; se repite para todos.
+El modelo predice los **tránsitos de cada segmento de mercado** en un año fiscal;
+el volumen anual total del Canal se obtiene sumando los 10 segmentos.
 
-Modelos comparados:
-  1. Media histórica     — baseline (predice el promedio; sin aprendizaje).
-  2. Tendencia lineal    — transitos ~ índice de tiempo.
-  3. Tendencia + precio  — transitos ~ índice de tiempo + precio del crudo.
+Validación: **Leave-One-Year-Out (LOYO)**
+-----------------------------------------
+Se deja fuera un año fiscal COMPLETO (sus 10 segmentos), se entrena con los 5
+años restantes y se predice el año excluido; se repite para los 6 años. Es una
+validación honesta y exigente: el modelo nunca ve el año que predice, ni
+siquiera parcialmente, así que no puede filtrarse información del futuro.
 
-Métricas: MAE, RMSE, MAPE (%) y R² (sobre las predicciones LOO). El modelo ganador
-se reentrena con toda la serie y se serializa en `models/`.
+Modelos comparados
+------------------
+  1. Media histórica  — baseline sin aprendizaje (predice el promedio global).
+  2. Ridge            — regresión lineal regularizada sobre las features.
+  3. Gradient Boosting — ensamble de árboles por refuerzo.
+  4. Random Forest    — ensamble de árboles por bagging.
+
+Criterio de selección: **menor MAE a nivel de segmento**.
+Se usa MAE y no MAPE porque a nivel de segmento el MAPE se dispara con los
+denominadores pequeños (p. ej. 'Pasajeros' cayó a 17 tránsitos en FY2021 por la
+pandemia: un error de 100 tránsitos ahí pesa 588 %, más que un error de 1,000 en
+portacontenedores). El MAPE se reporta igualmente, y además se calcula sobre el
+**total anual agregado**, que es la métrica de negocio relevante.
 """
 
 from __future__ import annotations
@@ -29,9 +40,9 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.dummy import DummyRegressor
-from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.linear_model import Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.model_selection import LeaveOneOut
 
 import preparacion_datos as prep
 
@@ -41,8 +52,11 @@ BASE = Path(__file__).resolve().parents[1]
 OUTPUT = BASE / "output"
 MODELS = BASE / "models"
 
+SEMILLA = 42
+
 
 def mape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """MAPE (%) ignorando denominadores nulos."""
     y_true = np.asarray(y_true, dtype=float)
     y_pred = np.asarray(y_pred, dtype=float)
     mask = y_true != 0
@@ -58,92 +72,88 @@ def evaluar(y_true: np.ndarray, y_pred: np.ndarray) -> dict[str, float]:
     }
 
 
-def _definir_modelos() -> dict[str, dict]:
-    """Cada modelo declara su estimador y la lista de features que usa."""
+def _definir_modelos() -> dict[str, object]:
     return {
-        "Media_Historica": {
-            "estimador": DummyRegressor(strategy="mean"),
-            "features": ["indice_tendencia"],  # X ignorado por el baseline
-        },
-        "Tendencia_Lineal": {
-            "estimador": LinearRegression(),
-            "features": ["indice_tendencia"],
-        },
-        "Tendencia_mas_Precio": {
-            "estimador": LinearRegression(),
-            "features": ["indice_tendencia", "precio_barril_usd_prom"],
-        },
+        "Media_Historica": DummyRegressor(strategy="mean"),
+        "Ridge": Ridge(alpha=1.0),
+        "Gradient_Boosting": GradientBoostingRegressor(random_state=SEMILLA),
+        "Random_Forest": RandomForestRegressor(n_estimators=300, random_state=SEMILLA),
     }
 
 
-def loo_predicciones(df: pd.DataFrame, estimador, feats: list[str], target: str) -> np.ndarray:
-    """Predicciones Leave-One-Out para un modelo dado."""
-    X = df[feats].to_numpy()
-    y = df[target].to_numpy()
+def loyo_predicciones(df: pd.DataFrame, X: pd.DataFrame, estimador) -> np.ndarray:
+    """Predicciones Leave-One-Year-Out: cada año se predice sin haberlo visto."""
+    y = df[prep.TARGET].to_numpy()
     preds = np.empty(len(y), dtype=float)
-    for idx_tr, idx_te in LeaveOneOut().split(X):
-        m = clone(estimador)
-        m.fit(X[idx_tr], y[idx_tr])
-        preds[idx_te] = m.predict(X[idx_te])
-    return preds
+    for anio in sorted(df["anio_fiscal"].unique()):
+        test = (df["anio_fiscal"] == anio).to_numpy()
+        modelo = clone(estimador).fit(X[~test], y[~test])
+        preds[test] = modelo.predict(X[test])
+    return np.clip(preds, 0, None)
+
+
+def _metricas_anuales(df: pd.DataFrame, preds: np.ndarray) -> dict[str, float]:
+    """Agrega las predicciones por año fiscal y evalúa el total anual."""
+    agg = (
+        df.assign(pred=preds)
+        .groupby("anio_fiscal")
+        .agg(real=(prep.TARGET, "sum"), pred=("pred", "sum"))
+    )
+    return {
+        "MAE_total_anual": float(mean_absolute_error(agg["real"], agg["pred"])),
+        "MAPE_total_anual": mape(agg["real"].to_numpy(), agg["pred"].to_numpy()),
+    }
 
 
 def ejecutar() -> dict:
-    """Entrena, evalúa (LOO), selecciona y serializa el mejor modelo."""
+    """Entrena, evalúa (LOYO), selecciona y serializa el mejor modelo."""
     OUTPUT.mkdir(parents=True, exist_ok=True)
     MODELS.mkdir(parents=True, exist_ok=True)
 
     df = prep.preparar(persistir=True)
-    target = prep.TARGET
-    y = df[target].to_numpy()
+    X = prep.matriz_features(df)
+    y = df[prep.TARGET].to_numpy()
 
     resultados: dict[str, dict[str, float]] = {}
     preds_por_modelo: dict[str, np.ndarray] = {}
 
-    log.info("--- Validación Leave-One-Out (%d años fiscales) ---", len(df))
-    for nombre, spec in _definir_modelos().items():
-        preds = loo_predicciones(df, spec["estimador"], spec["features"], target)
-        resultados[nombre] = evaluar(y, preds)
+    log.info("--- Validación Leave-One-Year-Out (%d obs., %d años) ---",
+             len(df), df["anio_fiscal"].nunique())
+    for nombre, estimador in _definir_modelos().items():
+        preds = loyo_predicciones(df, X, estimador)
+        metricas = evaluar(y, preds) | _metricas_anuales(df, preds)
+        resultados[nombre] = metricas
         preds_por_modelo[nombre] = preds
-        log.info("%-22s -> [LOO] MAPE=%.2f%%  MAE=%.1f  R2=%.3f",
-                 nombre, resultados[nombre]["MAPE"], resultados[nombre]["MAE"],
-                 resultados[nombre]["R2"])
+        log.info(
+            "%-18s -> MAE=%6.1f  R2=%+.3f  | total anual: MAPE=%5.2f%%",
+            nombre, metricas["MAE"], metricas["R2"], metricas["MAPE_total_anual"],
+        )
 
-    # Selección del ganador por menor MAPE en LOO.
-    ganador = min(resultados, key=lambda n: resultados[n]["MAPE"])
-    log.info("Modelo ganador (LOO): %s (MAPE=%.2f%%)", ganador, resultados[ganador]["MAPE"])
+    # Selección por menor MAE a nivel de segmento (ver docstring del módulo).
+    ganador = min(resultados, key=lambda n: resultados[n]["MAE"])
+    baseline = resultados["Media_Historica"]["MAE"]
+    mejora = (baseline - resultados[ganador]["MAE"]) / baseline * 100
+    log.info("Modelo ganador: %s (MAE=%.1f, %.1f%% mejor que el baseline)",
+             ganador, resultados[ganador]["MAE"], mejora)
 
-    # Reentrenar el ganador con TODA la serie.
-    spec = _definir_modelos()[ganador]
-    feats = spec["features"]
-    modelo_final = clone(spec["estimador"])
-    modelo_final.fit(df[feats].to_numpy(), y)
-
+    # Reentrenar el ganador con TODO el panel.
+    modelo_final = clone(_definir_modelos()[ganador]).fit(X, y)
     with open(MODELS / "modelo_transitos.pkl", "wb") as fh:
-        pickle.dump({"modelo": modelo_final, "features": feats, "nombre": ganador}, fh)
+        pickle.dump(
+            {"modelo": modelo_final, "features": list(X.columns), "nombre": ganador},
+            fh,
+        )
 
-    # Predicciones LOO del ganador (para la figura del dashboard).
-    df_pred = pd.DataFrame({
-        "anio_fiscal": df["anio_fiscal"].to_numpy(),
-        "transitos_reales": y,
-        "transitos_predichos": np.round(preds_por_modelo[ganador], 0),
-    })
-    df_pred.to_csv(OUTPUT / "predicciones_test.csv", index=False)
-
-    # Tabla comparativa de métricas.
-    df_metricas = pd.DataFrame(resultados).T.reset_index(names="modelo").sort_values("MAPE")
-    df_metricas.to_csv(OUTPUT / "metricas_modelos.csv", index=False)
-
-    # Importancia / coeficientes del ganador (si es lineal).
-    importancias = _importancia_features(modelo_final, feats)
-    if importancias is not None:
-        importancias.to_csv(OUTPUT / "importancia_features.csv", index=False)
+    _persistir_artefactos(df, preds_por_modelo[ganador], resultados, modelo_final, X)
 
     resumen = {
         "modelo_ganador": ganador,
-        "criterio_seleccion": "menor MAPE en validación Leave-One-Out",
+        "criterio_seleccion": "menor MAE (nivel segmento) en validación Leave-One-Year-Out",
         "n_observaciones": int(len(df)),
-        "granularidad": "anual (año fiscal ACP)",
+        "n_segmentos": int(df["segmento"].nunique()),
+        "n_anios": int(df["anio_fiscal"].nunique()),
+        "granularidad": "segmento × año fiscal (ACP)",
+        "mejora_vs_baseline_pct": round(mejora, 1),
         "metricas": resultados,
     }
     with open(OUTPUT / "resumen_entrenamiento.json", "w", encoding="utf-8") as fh:
@@ -153,13 +163,45 @@ def ejecutar() -> dict:
     return resumen
 
 
+def _persistir_artefactos(
+    df: pd.DataFrame,
+    preds_ganador: np.ndarray,
+    resultados: dict[str, dict[str, float]],
+    modelo_final,
+    X: pd.DataFrame,
+) -> None:
+    """Escribe los CSV que consume el dashboard de Persona 5."""
+    # Detalle por segmento (validación LOYO del ganador).
+    detalle = df[["anio_fiscal", "segmento", prep.TARGET]].copy()
+    detalle = detalle.rename(columns={prep.TARGET: "transitos_reales"})
+    detalle["transitos_predichos"] = np.round(preds_ganador, 0)
+    detalle.to_csv(OUTPUT / "predicciones_test_por_segmento.csv", index=False)
+
+    # Total anual agregado (formato esperado por el dashboard).
+    anual = (
+        detalle.groupby("anio_fiscal")[["transitos_reales", "transitos_predichos"]]
+        .sum()
+        .reset_index()
+    )
+    anual.to_csv(OUTPUT / "predicciones_test.csv", index=False)
+
+    # Tabla comparativa de métricas.
+    (
+        pd.DataFrame(resultados).T.reset_index(names="modelo").sort_values("MAE")
+        .to_csv(OUTPUT / "metricas_modelos.csv", index=False)
+    )
+
+    # Importancia de features del ganador.
+    importancias = _importancia_features(modelo_final, list(X.columns))
+    if importancias is not None:
+        importancias.to_csv(OUTPUT / "importancia_features.csv", index=False)
+
+
 def _importancia_features(modelo, feats: list[str]) -> pd.DataFrame | None:
-    if hasattr(modelo, "coef_"):
-        valores = np.abs(np.ravel(modelo.coef_))
-        etiqueta = "coef_abs"
-    elif hasattr(modelo, "feature_importances_"):
-        valores = modelo.feature_importances_
-        etiqueta = "importancia"
+    if hasattr(modelo, "feature_importances_"):
+        valores, etiqueta = modelo.feature_importances_, "importancia"
+    elif hasattr(modelo, "coef_"):
+        valores, etiqueta = np.abs(np.ravel(modelo.coef_)), "coef_abs"
     else:
         return None
     return (

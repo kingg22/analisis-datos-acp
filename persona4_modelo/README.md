@@ -3,16 +3,17 @@
 **Grupo 8 — Análisis de Datos del Canal de Panamá**
 Segundo Parcial · Pipeline + Visualización
 
-Este módulo cubre la **fase de modelado**: consume el dataset unificado de
-Persona 2 y entrena un modelo para **predecir el volumen anual de tránsitos** del
-Canal de Panamá, generando un pronóstico de los próximos años fiscales para el
-dashboard de Persona 5.
+Este módulo cubre la **fase de modelado**: combina los tránsitos oficiales por
+segmento de Persona 1 con el precio del crudo de Persona 2 y entrena un modelo de
+Machine Learning para **predecir el volumen de tránsitos** del Canal de Panamá,
+generando el pronóstico FY2026 para el dashboard de Persona 5.
 
-> **Nota importante sobre los datos:** la ACP publica el desglose por segmento a
-> nivel **anual** (año fiscal), por lo que la serie tiene pocos puntos (FY2020–
-> FY2025). Con tan pocos datos, el modelo apropiado es **simple e interpretable**
-> (tendencia lineal + precio del crudo), validado con **Leave-One-Out** — no un
-> ensemble de ML, que requeriría muchas más observaciones.
+> **Decisión clave de diseño:** la ACP publica por **año fiscal**, así que la serie
+> de totales anuales tiene solo 6 puntos — insuficiente para que cualquier modelo
+> aprenda. En lugar de eso se modela el panel **segmento × año fiscal**, que da
+> **60 observaciones reales** (10 segmentos × 6 años) **sin inventar ni interpolar
+> ningún dato**, y el total anual se obtiene sumando los segmentos.
+> Ver [`docs/METODOLOGIA.md`](docs/METODOLOGIA.md) §1.
 
 ---
 
@@ -21,16 +22,16 @@ dashboard de Persona 5.
 ```
 persona4_modelo/
 ├── src/
-│   ├── preparacion_datos.py   # Carga + features (índice de tendencia, precio del crudo)
-│   ├── entrenamiento.py       # Leave-One-Out, compara 3 modelos, serializa el ganador
-│   ├── prediccion.py          # Pronóstico de los próximos años fiscales
-│   ├── visualizaciones.py     # 4 figuras PNG para el dashboard
+│   ├── preparacion_datos.py   # Panel segmento × año fiscal + features
+│   ├── entrenamiento.py       # Leave-One-Year-Out, compara 4 modelos, serializa el ganador
+│   ├── prediccion.py          # Pronóstico FY2026 por segmento + total
+│   ├── visualizaciones.py     # 5 figuras PNG para el dashboard
 │   └── run_pipeline.py        # Orquestador (corre los 3 módulos en orden)
 ├── data/
 │   ├── raw/                   # (reservado)
-│   └── processed/             # dataset_modelo.csv (matriz de features)
+│   └── processed/             # dataset_modelo.csv (panel modelable)
 ├── output/                    # Métricas, predicciones, importancia de features
-├── figures/                   # 4 PNG de evaluación y pronóstico
+├── figures/                   # 5 PNG de evaluación y pronóstico
 ├── models/                    # modelo_transitos.pkl (modelo ganador serializado)
 ├── docs/
 │   └── METODOLOGIA.md         # Metodología, métricas y limitaciones
@@ -83,9 +84,10 @@ python persona4_modelo/src/visualizaciones.py
 
 ## Dependencia de otras personas
 
-- **Persona 2** (recomendada): provee `persona2_pipeline/data/processed/dataset_unificado.csv`.
-  Si no existe, el módulo recae automáticamente en el agregado de Persona 3
-  (`agregado_serie_total.csv`, sin precio) para no bloquear el desarrollo.
+- **Persona 1** (obligatoria): provee `acp_transitos_por_segmento_af.csv`, el panel
+  de tránsitos oficiales por segmento de mercado.
+- **Persona 2** (obligatoria): provee `dataset_unificado.csv` con el precio
+  promedio del crudo por año fiscal.
 - **Persona 3**: las definiciones de régimen (sequía FY2024 / recuperación FY2025)
   provienen de su análisis.
 
@@ -93,13 +95,25 @@ python persona4_modelo/src/visualizaciones.py
 
 ## Resultados
 
-| Modelo ganador | MAPE (Leave-One-Out) |
-|---|---:|
-| **Media histórica** | **~6.5%** |
+Validación **Leave-One-Year-Out** sobre 60 observaciones (10 segmentos × 6 años):
 
-> Con solo 6 años fiscales y la fuerte caída de la sequía (FY2024), un promedio
-> resulta más robusto que los modelos de tendencia en validación Leave-One-Out.
-> Es un resultado honesto: la serie anual no muestra una tendencia lineal clara.
+| Modelo | MAE ↓ | R² ↑ | MAPE (total anual) |
+|---|---:|---:|---:|
+| Media histórica (baseline) | 874.7 | −0.004 | 6.53 % |
+| Ridge | 231.6 | +0.899 | 5.85 % |
+| Gradient Boosting | 192.3 | +0.912 | 5.97 % |
+| **Random Forest (ganador)** | **181.2** | **+0.921** | 6.22 % |
+
+> **El modelo aprende de verdad:** el MAE cae **79.3 %** frente al baseline sin
+> aprendizaje y el R² pasa de ≈0 a **+0.921**, en una validación donde el modelo
+> nunca ve el año que predice.
+
+**Pronóstico FY2026: 13,361 tránsitos totales** (desglose por segmento en
+`output/predicciones_2026_por_segmento.csv`).
+
+Los matices metodológicos —por qué se selecciona por MAE y no por MAPE, y por qué
+el baseline parece competitivo en el total anual sin serlo— están documentados en
+[`docs/METODOLOGIA.md`](docs/METODOLOGIA.md) §4 y §5.
 
 ---
 
@@ -109,10 +123,12 @@ python persona4_modelo/src/visualizaciones.py
 
 | Archivo | Contenido |
 |---|---|
-| `predicciones_2026.csv` | Pronóstico anual (`anio_fiscal, transitos_predichos`) |
-| `predicciones_test.csv` | Reales vs predichos en Leave-One-Out (validación visual) |
-| `metricas_modelos.csv` | Tabla comparativa de los 3 modelos (LOO) |
-| `importancia_features.csv` | Coeficientes del modelo ganador (si es lineal) |
+| `predicciones_2026.csv` | Pronóstico del total anual (`anio_fiscal, transitos_predichos`) |
+| `predicciones_2026_por_segmento.csv` | Pronóstico FY2026 desglosado por segmento |
+| `predicciones_test.csv` | Total anual real vs predicho en LOYO (validación visual) |
+| `predicciones_test_por_segmento.csv` | Real vs predicho por segmento y año |
+| `metricas_modelos.csv` | Tabla comparativa de los 4 modelos (LOYO) |
+| `importancia_features.csv` | Importancia de features del modelo ganador |
 | `resumen_entrenamiento.json` | Resumen completo (modelo ganador + todas las métricas) |
 
 ### Modelo en `models/`
@@ -125,10 +141,11 @@ python persona4_modelo/src/visualizaciones.py
 
 | Archivo | Uso sugerido en dashboard |
 |---|---|
-| `01_comparativa_modelos.png` | Sección "Modelo" · ranking de error (LOO) |
-| `02_ajuste_loo.png` | Validación: reales vs predichos (Leave-One-Out) |
-| `03_importancia_features.png` | Coeficientes del modelo (si aplica) |
-| `04_pronostico_anual.png` | **Tarjeta principal**: histórico + pronóstico anual |
+| `01_comparativa_modelos.png` | Sección "Modelo" · ranking de error (baseline destacado) |
+| `02_ajuste_loo.png` | Validación: total anual real vs predicho (LOYO) |
+| `03_importancia_features.png` | Importancia de features del modelo ganador |
+| `04_pronostico_anual.png` | **Tarjeta principal**: histórico + pronóstico FY2026 |
+| `05_ajuste_por_segmento.png` | Dispersión real vs predicho por segmento |
 
 ---
 

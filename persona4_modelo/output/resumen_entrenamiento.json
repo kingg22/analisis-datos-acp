@@ -1,26 +1,43 @@
 {
-  "modelo_ganador": "Media_Historica",
-  "criterio_seleccion": "menor MAPE en validación Leave-One-Out",
-  "n_observaciones": 6,
-  "granularidad": "anual (año fiscal ACP)",
+  "modelo_ganador": "Random_Forest",
+  "criterio_seleccion": "menor MAE (nivel segmento) en validación Leave-One-Year-Out",
+  "n_observaciones": 60,
+  "n_segmentos": 10,
+  "n_anios": 6,
+  "granularidad": "segmento × año fiscal (ACP)",
+  "mejora_vs_baseline_pct": 79.3,
   "metricas": {
     "Media_Historica": {
-      "MAE": 815.6,
-      "RMSE": 1174.5721944606044,
-      "MAPE": 6.529897210758675,
-      "R2": -0.4399999999999997
+      "MAE": 874.6806666666666,
+      "RMSE": 984.802075749234,
+      "MAPE": 302.4637497815337,
+      "R2": -0.004365595898014885,
+      "MAE_total_anual": 815.5999999999998,
+      "MAPE_total_anual": 6.529897210758671
     },
-    "Tendencia_Lineal": {
-      "MAE": 1152.3903205531108,
-      "RMSE": 1336.9620895181704,
-      "MAPE": 9.060144442095767,
-      "R2": -0.8656975717924298
+    "Ridge": {
+      "MAE": 231.57980085297788,
+      "RMSE": 311.9643546916153,
+      "MAPE": 85.71763105573935,
+      "R2": 0.8992131515904784,
+      "MAE_total_anual": 704.8388972219054,
+      "MAPE_total_anual": 5.8519932151393
     },
-    "Tendencia_mas_Precio": {
-      "MAE": 1357.6501272226415,
-      "RMSE": 1752.544941457126,
-      "MAPE": 10.591917618261354,
-      "R2": -2.2058366393388664
+    "Gradient_Boosting": {
+      "MAE": 192.29867314408247,
+      "RMSE": 291.7859398693655,
+      "MAPE": 55.315954778020384,
+      "R2": 0.9118296349326998,
+      "MAE_total_anual": 720.3234362001627,
+      "MAPE_total_anual": 5.969820866340198
+    },
+    "Random_Forest": {
+      "MAE": 181.19355555555558,
+      "RMSE": 277.0439750145306,
+      "MAPE": 50.718207307572115,
+      "R2": 0.9205138729193405,
+      "MAE_total_anual": 764.2499999999997,
+      "MAPE_total_anual": 6.222034841755385
     }
   }
 }

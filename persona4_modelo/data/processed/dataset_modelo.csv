@@ -1,7 +1,61 @@
-anio_fiscal,transitos_totales,toneladas_totales,peajes_totales_usd,precio_barril_usd_prom,var_anual_pct,indice_tendencia
-2020,13369,475199998,2663000000,47.64,,0
-2021,13342,516700001,2968199999,62.21,30.58,1
-2022,14239,518799999,3027900000,96.77,55.55,2
-2023,14080,511100000,3348300000,83.78,-13.42,3
-2024,11240,423099999,3179099999,82.13,-1.97,4
-2025,13404,489200002,4007899999,71.03,-13.52,5
+anio_fiscal,segmento,transitos,fuente,precio_barril_usd_prom,sequia
+2020,Carga_general,612,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Carga_general,508,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Carga_general,653,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Carga_general,526,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Carga_general,287,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Carga_general,463,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Carga_refrigerada,607,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Carga_refrigerada,564,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Carga_refrigerada,604,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Carga_refrigerada,546,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Carga_refrigerada,436,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Carga_refrigerada,516,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Gas_licuado_GLP,1305,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Gas_licuado_GLP,1523,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Gas_licuado_GLP,1501,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Gas_licuado_GLP,1757,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Gas_licuado_GLP,1561,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Gas_licuado_GLP,1805,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Gas_natural_GNL,419,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Gas_natural_GNL,537,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Gas_natural_GNL,374,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Gas_natural_GNL,326,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Gas_natural_GNL,115,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Gas_natural_GNL,61,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Graneles_secos,2759,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Graneles_secos,3043,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Graneles_secos,2910,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Graneles_secos,2649,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Graneles_secos,1278,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Graneles_secos,2230,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Otros,1438,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Otros,1170,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Otros,1560,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Otros,1730,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Otros,1572,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Otros,1689,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Pasajeros,227,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Pasajeros,17,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Pasajeros,129,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Pasajeros,251,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Pasajeros,205,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Pasajeros,214,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Portacontenedores,2551,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Portacontenedores,2602,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Portacontenedores,2822,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Portacontenedores,2787,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Portacontenedores,2773,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Portacontenedores,2893,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Tanqueros_quimiqueros,2779,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Tanqueros_quimiqueros,2596,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Tanqueros_quimiqueros,2939,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Tanqueros_quimiqueros,2695,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Tanqueros_quimiqueros,2230,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Tanqueros_quimiqueros,2662,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0
+2020,Vehiculos_RoRo,672,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2020)",47.64,0
+2021,Vehiculos_RoRo,782,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2021)",62.21,0
+2022,Vehiculos_RoRo,747,"ACP - Informe Anual 2022, Gráfica 6, p. 35 (AF2022)",96.77,0
+2023,Vehiculos_RoRo,813,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2023)",83.78,0
+2024,Vehiculos_RoRo,783,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2024)",82.13,1
+2025,Vehiculos_RoRo,871,"ACP - Informe Anual 2025, Gráfica 6, p. 46 (AF2025)",71.03,0

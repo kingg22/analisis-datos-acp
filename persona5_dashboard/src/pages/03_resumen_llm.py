@@ -74,7 +74,18 @@ def build_context() -> str:
 
     resumen_ml = load_resumen_entrenamiento()
     met = resumen_ml.get("metricas", {}).get(resumen_ml["modelo_ganador"], {})
-    parts.append(f"## Modelo ML\n- Ganador: {resumen_ml['modelo_ganador']}\n- MAPE (Leave-One-Out): {met.get('MAPE', 0):.2f}%")
+    base = resumen_ml.get("metricas", {}).get("Media_Historica", {})
+    parts.append(
+        f"## Modelo ML\n"
+        f"- Ganador: {resumen_ml['modelo_ganador']}\n"
+        f"- Granularidad: {resumen_ml.get('granularidad', 'N/A')} "
+        f"({resumen_ml.get('n_observaciones', 'N/A')} observaciones)\n"
+        f"- Validación: Leave-One-Year-Out\n"
+        f"- R2: {met.get('R2', 0):+.3f} (baseline media histórica: {base.get('R2', 0):+.3f})\n"
+        f"- MAE: {met.get('MAE', 0):,.0f} tránsitos "
+        f"({resumen_ml.get('mejora_vs_baseline_pct', 0)}% mejor que el baseline)\n"
+        f"- MAPE sobre el total anual: {met.get('MAPE_total_anual', 0):.2f}%"
+    )
 
     pred = load_predicciones_2026()
     parts.append(f"## Pronóstico próximos años fiscales\n{pred[['anio_fiscal','transitos_predichos']].to_string(index=False)}")
@@ -151,12 +162,14 @@ def generate_local_summary(context: str, prompt: str) -> str:
 ## 🤖 Modelo Predictivo
 
 - **Modelo ganador:** {resumen_ml['modelo_ganador'].replace('_', ' ')}
-- **MAPE (Leave-One-Out):** {met.get('MAPE', 0):.2f}%
-- **Observaciones:** {resumen_ml.get('n_observaciones', 'N/A')} años fiscales
+- **Validación:** Leave-One-Year-Out sobre {resumen_ml.get('n_observaciones', 'N/A')} observaciones ({resumen_ml.get('granularidad', 'N/A')})
+- **R²:** {met.get('R2', 0):+.3f}
+- **MAE:** {met.get('MAE', 0):,.0f} tránsitos — {resumen_ml.get('mejora_vs_baseline_pct', 0)}% mejor que el baseline
+- **MAPE (total anual):** {met.get('MAPE_total_anual', 0):.2f}%
 
 ---
 
-## 🔮 Pronóstico (próximos años fiscales)
+## 🔮 Pronóstico
 
 | Año fiscal | Tránsitos Predichos |
 |------------|---------------------|
