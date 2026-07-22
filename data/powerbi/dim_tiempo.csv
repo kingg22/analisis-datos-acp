@@ -1,0 +1,7 @@
+﻿anio_fiscal,etiqueta,periodo,es_sequia,precio_barril_usd_prom
+2020,FY2020,baseline,0,47.64
+2021,FY2021,baseline,0,62.21
+2022,FY2022,baseline,0,96.77
+2023,FY2023,sequia,1,83.78
+2024,FY2024,sequia,1,82.13
+2025,FY2025,recuperacion,0,71.03

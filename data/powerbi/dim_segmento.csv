@@ -1,0 +1,11 @@
+﻿segmento_id,segmento,nombre_display,categoria
+1,Carga_general,Carga general,Graneles
+2,Carga_refrigerada,Carga refrigerada,Graneles
+3,Gas_licuado_GLP,Gas licuado (GLP),Gases
+4,Gas_natural_GNL,Gas natural (GNL),Gases
+5,Graneles_secos,Graneles secos,Graneles
+6,Otros,Otros,Otros
+7,Pasajeros,Pasajeros,Otros
+8,Portacontenedores,Portacontenedores,Contenedores
+9,Tanqueros_quimiqueros,Tanqueros / Quimiqueros,Líquidos
+10,Vehiculos_RoRo,Vehículos RoRo,Otros
